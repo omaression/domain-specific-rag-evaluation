@@ -21,8 +21,27 @@ def score_response(
     case: TestCase,
     response: RAGAnswer,
     rep: int = 0,
+    *,
+    retrieval_only: bool = False,
 ) -> CaseResult:
-    """Combine all metrics and failure tags for one response."""
+    """Combine all metrics and failure tags for one response.
+
+    A retrieval-only response has no real answer, so only the retrieval metrics apply. It passes
+    unless the case is answerable and no gold document was retrieved.
+    """
+
+    if retrieval_only:
+        retrieved_docs = {item.chunk.doc_id for item in response.retrieved}
+        missed = case.answerable and not (retrieved_docs & set(case.gold_doc_ids))
+        return CaseResult(
+            run_id=run_id,
+            case_id=case.case_id,
+            rep=rep,
+            answer=response,
+            scores=retrieval.score_case(case, response),
+            passed=not missed,
+            failure_tags=["RETRIEVAL_MISS"] if missed else [],
+        )
 
     scores: dict[str, float | None] = {}
 
@@ -102,12 +121,14 @@ def run_cases(
     config=None,
     dataset_path: str = "in-memory",
     resume: bool = False,
+    retrieval_only: bool = False,
 ) -> RunSummary:
     """Save responses incrementally; resume only with matching metadata.
 
     Pass the actual SystemConfig as config to write meta.json and enable
     safe resume. Legacy callers without config can create new runs only.
     Resume retries failed and unfinished pairs, never completed results.
+    With retrieval_only, only retrieval is scored and meta.json records the mode.
     """
     from datetime import UTC, datetime
     from pathlib import Path
@@ -150,11 +171,13 @@ def run_cases(
             # for fake and sanity configs that use no model.
             from deskrag.rag.llm.env import env_fingerprint
 
-            environment = env_fingerprint(config)
+            environment = env_fingerprint(config, retrieval_only=retrieval_only)
         meta = RunMeta(
             run_id=run_id,
             created_at=datetime.now(UTC),
-            config=config.model_dump(mode="json"),
+            # Recorded like the fixtures' `fixture_only`: plain data next to the config.
+            config=config.model_dump(mode="json")
+            | ({"retrieval_only": True} if retrieval_only else {}),
             config_hash=config_hash(config),
             git_sha=sha,
             git_dirty=dirty,
@@ -177,6 +200,8 @@ def run_cases(
         if not paths.meta.is_file():
             raise ValueError("Cannot resume without meta.json")
         stored = read_json(paths.meta, RunMeta)
+        if bool(stored.config.get("retrieval_only")) != retrieval_only:
+            raise ValueError("Cannot resume: retrieval_only differs from meta.json")
         for field in ("run_id", "config_hash", "reps"):
             if getattr(stored, field) != getattr(meta, field):
                 raise ValueError(f"Cannot resume: {field} differs from meta.json")
@@ -240,7 +265,7 @@ def run_cases(
                 )
             else:
                 # Scorer bugs must propagate, not become system error rows.
-                row = score_response(run_id, case, response, rep=rep)
+                row = score_response(run_id, case, response, rep=rep, retrieval_only=retrieval_only)
                 # Persist success before removing its previous error.
                 append_jsonl(paths.results, row)
                 rows.append(row)
