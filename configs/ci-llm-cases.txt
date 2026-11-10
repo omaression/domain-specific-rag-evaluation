@@ -1,0 +1,26 @@
+# Frozen case subset for the CI LLM gate. Made by scripts/pick_ci_cases.py.
+# Changing this list changes the dataset fingerprint, so baselines/ci-llm
+# must be re-recorded in the same PR (see baselines/README.md).
+ff-001
+ff-002
+ff-003
+ff-004
+ff-005
+ff-006
+ff-007
+ff-008
+ff-009
+ff-010
+ff-011
+ff-012
+ff-013
+ff-014
+ff-015
+ff-016
+ff-017
+ff-018
+ff-019
+ff-020
+ff-021
+kp-001
+kp-002
