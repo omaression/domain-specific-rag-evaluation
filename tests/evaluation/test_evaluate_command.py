@@ -47,3 +47,70 @@ def test_cli_rejects_resume_without_directory():
     assert result.exit_code == 2
     # On GitHub Actions, Typer colors usage errors, with codes even inside "--run-dir".
     assert "requires --run-dir" in ANSI_CODE.sub("", result.output)
+
+
+RETRIEVAL_ONLY_CONFIG = """\
+name: retrieval-only-test
+system: rag
+corpus_dir: data/samples/corpus
+retrieval:
+  method: fake
+  k: 3
+llm:
+  model: never-called
+"""
+
+
+def test_cli_retrieval_only_runs_without_ollama(tmp_path, monkeypatch):
+    monkeypatch.chdir(REPO)
+    # Nothing listens on port 9, so any call to Ollama would fail this test.
+    monkeypatch.setenv("OLLAMA_HOST", "http://127.0.0.1:9")
+    config = tmp_path / "config.yaml"
+    config.write_text(RETRIEVAL_ONLY_CONFIG, encoding="utf-8")
+    target = tmp_path / "run"
+
+    result = CliRunner().invoke(
+        app,
+        [
+            "eval",
+            "run",
+            "--config",
+            str(config),
+            "--cases",
+            "data/samples/cases.jsonl",
+            "--retrieval-only",
+            "--run-dir",
+            str(target),
+        ],
+    )
+
+    assert result.exit_code == 0, result.output
+    assert "hit@5: 1.0" in result.output
+    meta = read_json(target / "meta.json", RunMeta)
+    summary = read_json(target / "summary.json", RunSummary)
+    assert meta.config["retrieval_only"] is True
+    assert meta.dataset.n_cases == 7
+    assert summary.metrics["hit@5"] == 1.0
+    assert summary.metrics["e2e_pass"] is None
+    assert len(read_jsonl(target / "results.jsonl", CaseResult)) == 7
+
+
+def test_cli_retrieval_only_needs_a_rag_config(tmp_path, monkeypatch):
+    monkeypatch.chdir(REPO)
+    result = CliRunner().invoke(
+        app,
+        [
+            "eval",
+            "run",
+            "--config",
+            "configs/fake.yaml",
+            "--cases",
+            "data/samples/cases.jsonl",
+            "--retrieval-only",
+            "--run-dir",
+            str(tmp_path / "run"),
+        ],
+    )
+    assert result.exit_code == 2
+    # Typer may wrap the message, so check the option name, which is one unbroken word.
+    assert "retrieval-only" in ANSI_CODE.sub("", result.output)

@@ -32,8 +32,6 @@ def run(
     ] = False,
 ) -> None:
     """Run every case and write runs/<run_id>/ (meta, results, errors, summary)."""
-    if retrieval_only:
-        todo(OWNER, "eval run --retrieval-only (M2)")
     if split not in {"dev", "test"}:
         raise typer.BadParameter("Choose dev or test", param_hint="--split")
     if limit is not None and limit < 1:
@@ -61,7 +59,17 @@ def run(
     else:
         run_id = make_run_id(cfg.name, config_hash(cfg))
     destination = run_dir if run_dir is not None else Path("runs") / run_id
-    system = build_system(cfg, cases=selected)
+    if retrieval_only:
+        if cfg.system != "rag":
+            raise typer.BadParameter(
+                "Needs a config with system: rag", param_hint="--retrieval-only"
+            )
+        from deskrag.evaluation.retrieval_only import RetrievalOnlySystem
+        from deskrag.rag.retrieval import build_retriever
+
+        system = RetrievalOnlySystem(build_retriever(cfg), cfg.retrieval.k)
+    else:
+        system = build_system(cfg, cases=selected)
     summary = run_cases(
         run_id,
         selected,
@@ -71,9 +79,11 @@ def run(
         config=cfg,
         dataset_path=str(cases),
         resume=resume,
+        retrieval_only=retrieval_only,
     )
     typer.echo(f"Run saved: {destination}")
-    typer.echo(f"e2e_pass: {summary.metrics['e2e_pass']}")
+    headline = "hit@5" if retrieval_only else "e2e_pass"
+    typer.echo(f"{headline}: {summary.metrics[headline]}")
     if summary.counts.errors:
         typer.echo(f"{summary.counts.errors} unresolved error(s); resume to retry.", err=True)
         raise typer.Exit(1)
