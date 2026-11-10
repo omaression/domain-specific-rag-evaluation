@@ -45,15 +45,14 @@ jobs:
 
   retrieval-gate:
     runs-on: ubuntu-latest
-    # Until M2 this is advisory. Set repository variable to blocking after integration.
-    continue-on-error: ${{ vars.DESKRAG_RETRIEVAL_GATE != 'blocking' }}
+    env:
+      DESKRAG_MACHINE: github-hosted
     steps:
       - uses: actions/checkout@v7
       - uses: astral-sh/setup-uv@v10.2.0
       - run: uv sync --locked
-      - name: Require reviewed real retrieval baseline
-        shell: bash
-        run: |
-          test -f baselines/dev-retrieval/meta.json || { echo "::error::WS2/WS4 integration and a real dev-retrieval baseline are required"; exit 2; }
       - name: BM25 retrieval-only evaluation and comparison
         run: uv run deskrag regress --config configs/ci-retrieval.yaml --baseline baselines/dev-retrieval --gates baselines/retrieval-gates.yaml --retrieval-only
+      - name: Show the comparison
+        if: always()
+        run: cat runs/*/compare.md >> "$GITHUB_STEP_SUMMARY" 2>/dev/null || true
