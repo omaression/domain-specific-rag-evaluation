@@ -22,6 +22,10 @@ def run(
     split: Annotated[str, typer.Option(help="dev or test. Run test only once, at M3.")] = "dev",
     cases: Annotated[Path, typer.Option(help="Test-set file or directory.")] = TESTSET_DIR,
     limit: Annotated[int | None, typer.Option(help="Only the first N cases.")] = None,
+    case_ids: Annotated[
+        Path | None,
+        typer.Option("--case-ids", help="File listing the case IDs to run, one per line."),
+    ] = None,
     retrieval_only: Annotated[
         bool, typer.Option("--retrieval-only", help="Score retrieval only; no LLM calls.")
     ] = False,
@@ -47,6 +51,13 @@ def run(
 
     cfg = load_config(config)
     selected = load_cases(cases, split=split)
+    if case_ids is not None:
+        from deskrag.evaluation.subset import read_case_ids, select_cases
+
+        try:
+            selected = select_cases(selected, read_case_ids(case_ids))
+        except (ValueError, OSError) as exc:
+            raise typer.BadParameter(str(exc), param_hint="--case-ids") from exc
     if limit is not None:
         selected = selected[:limit]
     if not selected:
@@ -77,7 +88,7 @@ def run(
         destination,
         reps=reps,
         config=cfg,
-        dataset_path=str(cases),
+        dataset_path=str(cases) if case_ids is None else f"{cases} (case IDs: {case_ids})",
         resume=resume,
         retrieval_only=retrieval_only,
     )

@@ -114,3 +114,58 @@ def test_cli_retrieval_only_needs_a_rag_config(tmp_path, monkeypatch):
     assert result.exit_code == 2
     # Typer may wrap the message, so check the option name, which is one unbroken word.
     assert "retrieval-only" in ANSI_CODE.sub("", result.output)
+
+
+def test_cli_runs_only_the_listed_cases(tmp_path, monkeypatch):
+    monkeypatch.chdir(REPO)
+    ids = tmp_path / "ids.txt"
+    ids.write_text("# two sample cases\ns02\ns01\n", encoding="utf-8")
+    target = tmp_path / "run"
+
+    result = CliRunner().invoke(
+        app,
+        [
+            "eval",
+            "run",
+            "--config",
+            "configs/fake.yaml",
+            "--cases",
+            "data/samples/cases.jsonl",
+            "--case-ids",
+            str(ids),
+            "--run-dir",
+            str(target),
+        ],
+    )
+
+    assert result.exit_code == 0, result.output
+    meta = read_json(target / "meta.json", RunMeta)
+    rows = read_jsonl(target / "results.jsonl", CaseResult)
+    assert [row.case_id for row in rows] == ["s01", "s02"]
+    assert meta.dataset.n_cases == 2
+    assert str(ids) in meta.dataset.path
+
+
+def test_cli_rejects_a_listed_case_outside_the_split(tmp_path, monkeypatch):
+    monkeypatch.chdir(REPO)
+    ids = tmp_path / "ids.txt"
+    ids.write_text("s01\ns04\n", encoding="utf-8")  # s04 is a test-split case
+
+    result = CliRunner().invoke(
+        app,
+        [
+            "eval",
+            "run",
+            "--config",
+            "configs/fake.yaml",
+            "--cases",
+            "data/samples/cases.jsonl",
+            "--case-ids",
+            str(ids),
+            "--run-dir",
+            str(tmp_path / "run"),
+        ],
+    )
+
+    assert result.exit_code == 2
+    assert "s04" in ANSI_CODE.sub("", result.output)
