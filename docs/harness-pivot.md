@@ -82,7 +82,7 @@ Run on 2026-11-10 on GitHub-hosted `ubuntu-latest` runners (4 cores, 15 GB RAM, 
 
 Seconds per case is the wall time of the whole eval step divided by 10, so it includes loading the model and building the index. Setup overhead is the rest of the job (checkout, dependencies, installing Ollama) plus a 60 s allowance for restoring the model from cache. Installing Ollama took 34 to 71 s and pulling a model about 10 s.
 
-For comparison, the pinned model takes 5.8 s per case on the reference Mac, and it passes the same 6 of these 10 cases there.
+For comparison, the pinned model takes 5.8 s per case on the reference Mac, where it also passes 6 of these 10 cases.
 
 **Decision: the LLM gate runs `llama3.2:3b` on 23 cases.** The pinned model is about 9 times slower on the runner than on the Mac and fits only 9 cases. `llama3.2:3b` is the only model that fits at least 20. It is also the alternative model from the bake-off ([model-bakeoff.md](model-bakeoff.md)).
 
