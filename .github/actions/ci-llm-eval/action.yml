@@ -1,0 +1,62 @@
+name: CI LLM eval
+description: >-
+  Install a pinned Ollama, pull the config's model (cached), and run the frozen case subset.
+  The caller checks out the repo and runs `uv sync` first.
+inputs:
+  config:
+    description: System config to run.
+    default: configs/ci-llm.yaml
+  case-ids:
+    description: File listing the case IDs to run.
+    default: configs/ci-llm-cases.txt
+  run-dir:
+    description: Where to write the run.
+    required: true
+  ollama-version:
+    description: Ollama release to install. Keep it equal to the reference machine's.
+    default: "0.40.3"
+runs:
+  using: composite
+  steps:
+    - name: Read the model from the config
+      id: model
+      shell: bash
+      env:
+        CONFIG: ${{ inputs.config }}
+      run: |
+        model=$(uv run python -c "import sys; from deskrag.core.config import load_config; print(load_config(sys.argv[1]).llm.model)" "$CONFIG")
+        echo "name=$model" >> "$GITHUB_OUTPUT"
+        echo "slug=$(printf '%s' "$model" | tr -c 'A-Za-z0-9._-' '-')" >> "$GITHUB_OUTPUT"
+    - name: Install Ollama
+      shell: bash
+      env:
+        OLLAMA_VERSION: ${{ inputs.ollama-version }}
+      run: |
+        curl -fsSL https://ollama.com/install.sh | sh
+        sudo systemctl stop ollama || true
+        sudo systemctl disable ollama || true
+    - name: Restore the model cache
+      uses: actions/cache@v6
+      with:
+        path: ~/.ollama/models
+        key: ollama-${{ inputs.ollama-version }}-${{ steps.model.outputs.slug }}
+    - name: Start Ollama and pull the model
+      shell: bash
+      env:
+        MODEL: ${{ steps.model.outputs.name }}
+      run: |
+        nohup ollama serve > "$RUNNER_TEMP/ollama.log" 2>&1 &
+        for _ in $(seq 1 30); do
+          if curl -sf http://127.0.0.1:11434/api/version > /dev/null; then break; fi
+          sleep 1
+        done
+        ollama pull "$MODEL"
+    - name: Run the cases
+      shell: bash
+      env:
+        DESKRAG_MACHINE: github-hosted
+        DESKRAG_LLM_TIMEOUT_S: "600"
+        CONFIG: ${{ inputs.config }}
+        CASE_IDS: ${{ inputs.case-ids }}
+        RUN_DIR: ${{ inputs.run-dir }}
+      run: uv run deskrag eval run --config "$CONFIG" --split dev --case-ids "$CASE_IDS" --run-dir "$RUN_DIR"

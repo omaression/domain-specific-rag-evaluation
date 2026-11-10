@@ -1,0 +1,9 @@
+# The system the CI LLM gate runs on a GitHub-hosted runner (no GPU).
+# The baseline pipeline with a smaller model, chosen by the trial run (docs/harness-pivot.md):
+# the pinned model takes about 50 s per case on a runner. Its runs are compared only with
+# baselines/ci-llm, which .github/workflows/record-ci-baseline.yml records on the same kind of runner.
+extends: baseline.yaml
+name: ci-llm
+
+llm:
+  model: llama3.2:3b
