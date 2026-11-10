@@ -4,7 +4,7 @@ import pytest
 
 from deskrag.core.config import SystemConfig
 from deskrag.core.interfaces import InfraError
-from deskrag.rag.llm import build_llm, llm_options
+from deskrag.rag.llm import build_llm, llm_options, request_timeout_s
 from deskrag.rag.llm.cache import CachedLLM
 from deskrag.rag.llm.env import env_fingerprint
 from deskrag.rag.llm.ollama_client import OllamaClient
@@ -208,3 +208,28 @@ def test_env_fingerprint_records_only_the_embedding_model_for_a_retrieval_only_r
     )
     assert env.ollama_version == "0.40.3"
     assert env.model_digests == {"nomic-embed-text": "0a10"}
+
+
+def test_build_llm_takes_the_timeout_from_the_environment(monkeypatch):
+    seen = {}
+
+    def fake_client(**kwargs):
+        seen.update(kwargs)
+        return StubOllama(models=[("llama3.2:3b", "a80c")])
+
+    monkeypatch.setattr(ollama, "Client", fake_client)
+    monkeypatch.delenv("DESKRAG_LLM_CACHE", raising=False)
+    monkeypatch.delenv("DESKRAG_LLM_TIMEOUT_S", raising=False)
+    build_llm(RAG)
+    assert seen["timeout"] == 120.0
+
+    monkeypatch.setenv("DESKRAG_LLM_TIMEOUT_S", "600")
+    build_llm(RAG)
+    assert seen["timeout"] == 600.0
+
+
+@pytest.mark.parametrize("value", ["soon", "0", "-5", "nan"])
+def test_a_bad_timeout_is_rejected(monkeypatch, value):
+    monkeypatch.setenv("DESKRAG_LLM_TIMEOUT_S", value)
+    with pytest.raises(ValueError, match="DESKRAG_LLM_TIMEOUT_S"):
+        request_timeout_s()
