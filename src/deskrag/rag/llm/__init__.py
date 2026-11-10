@@ -4,8 +4,10 @@
   retries, then InfraError), plus the server version and model digests a run records.
 - cache.py: `CachedLLM`, an opt-in on-disk response cache (DESKRAG_LLM_CACHE=1).
 - env.py: `env_fingerprint(cfg)`, what the eval runner writes to meta.json as `env`.
+- DESKRAG_LLM_TIMEOUT_S: seconds to wait for one reply (default 120).
 """
 
+import os
 from typing import Any
 
 from deskrag.core.config import LLMConfig, SystemConfig
@@ -22,6 +24,26 @@ def llm_options(llm: LLMConfig) -> dict[str, Any]:
     }
 
 
+DEFAULT_TIMEOUT_S = 120.0
+
+
+def request_timeout_s() -> float:
+    """Seconds to wait for one Ollama reply: DESKRAG_LLM_TIMEOUT_S, or 120.
+
+    A CPU-only machine such as a GitHub runner can need longer than 120 s for one case.
+    """
+    raw = os.environ.get("DESKRAG_LLM_TIMEOUT_S")
+    if raw is None:
+        return DEFAULT_TIMEOUT_S
+    try:
+        value = float(raw)
+    except ValueError:
+        value = 0.0
+    if not 0 < value < float("inf"):
+        raise ValueError(f"DESKRAG_LLM_TIMEOUT_S must be a positive number of seconds, got {raw!r}")
+    return value
+
+
 def build_llm(cfg: SystemConfig) -> LLMClient:
     """The config's Ollama model, wrapped in the response cache when DESKRAG_LLM_CACHE=1.
 
@@ -34,7 +56,7 @@ def build_llm(cfg: SystemConfig) -> LLMClient:
 
     if cfg.llm is None:
         raise ValueError(f"config {cfg.name!r} has no llm section")
-    client = OllamaClient(cfg.llm.model, think=cfg.llm.think)
+    client = OllamaClient(cfg.llm.model, think=cfg.llm.think, timeout_s=request_timeout_s())
     digest = client.model_digests([cfg.llm.model])[cfg.llm.model]
     if not cache_enabled():
         return client
