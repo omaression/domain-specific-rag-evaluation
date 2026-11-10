@@ -69,6 +69,25 @@ GitHub runners have no GPU, so speed is unknown. The first task is a trial workf
 - If not, the trial repeats with a smaller model, and `configs/ci-llm.yaml` names that model.
 - If no model gets 20 cases into 10 minutes, the fallback is record and replay: the PR author runs the eval locally and commits the run, and CI re-scores and compares it without calling a model.
 
+### Trial result
+
+Run on 2026-11-10 on GitHub-hosted `ubuntu-latest` runners (4 cores, 15 GB RAM, no GPU) with Ollama 0.40.3. Each model ran the first 10 dev cases (`ff-001` to `ff-010`, all answerable) through `configs/baseline.yaml` with only the model changed. No run had an infra error or a timeout.
+
+| Model | Passed (of 10) | Seconds per case | Setup overhead (s) | Cases that fit in 10 min |
+|---|---:|---:|---:|---:|
+| `qwen3:4b-instruct-2507-q4_K_M` (pinned) | 6 | 50.0 | 143 | 9 |
+| `llama3.2:3b` | 10 | 20.5 | 113 | 23 |
+| `llama3.2:1b` | 2 | 27.3 | 118 | 17 |
+| `gemma3:1b` | 2 | 31.3 | 104 | 15 |
+
+Seconds per case is the wall time of the whole eval step divided by 10, so it includes loading the model and building the index. Setup overhead is the rest of the job (checkout, dependencies, installing Ollama) plus a 60 s allowance for restoring the model from cache. Installing Ollama took 34 to 71 s and pulling a model about 10 s.
+
+For comparison, the pinned model takes 5.8 s per case on the reference Mac, where it also passes 6 of these 10 cases.
+
+**Decision: the LLM gate runs `llama3.2:3b` on 23 cases.** The pinned model is about 9 times slower on the runner than on the Mac and fits only 9 cases. `llama3.2:3b` is the only model that fits at least 20. It is also the alternative model from the bake-off ([model-bakeoff.md](model-bakeoff.md)).
+
+What this means for the gate: it tests the same retriever, prompt, parser, and scoring as the baseline system, but with a different model. A change that only hurts `qwen3:4b` would pass the gate and has to be caught by `make regress` on the Mac.
+
 ### Gaps in the current code
 
 - `deskrag eval run --retrieval-only` is still a stub (`src/deskrag/commands/evaluate.py`, line 36, exit 3). The retrieval gate cannot run until this is finished, even with a baseline.
