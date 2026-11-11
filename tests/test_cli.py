@@ -19,6 +19,8 @@ COMMANDS = [
     ["compare"],
     ["report"],
     ["baseline", "promote"],
+    ["baseline", "record"],
+    ["baseline", "check"],
     ["runs", "list"],
     ["runs", "table"],
 ]

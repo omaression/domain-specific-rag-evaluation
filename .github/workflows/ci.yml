@@ -56,3 +56,32 @@ jobs:
       - name: Show the comparison
         if: always()
         run: cat runs/*/compare.md >> "$GITHUB_STEP_SUMMARY" 2>/dev/null || true
+
+  # No model runs here. The full dev run is recorded on the reference machine (`make record`)
+  # and committed under baselines/dev. This job checks that recording: it must match this code
+  # and data, its scores must be what the scoring code computes, and it must not be a gated
+  # regression against the base branch's recording.
+  llm-gate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 2
+      - uses: astral-sh/setup-uv@v10.2.0
+      - run: uv sync --locked
+      - name: Take the base branch's recording
+        shell: bash
+        run: |
+          # On a pull request HEAD is the merge commit, so HEAD^1 is the base branch.
+          mkdir -p "$RUNNER_TEMP/base"
+          git archive HEAD^1 baselines/dev | tar -x -C "$RUNNER_TEMP/base" || echo "The base branch has no baselines/dev."
+      - name: Check the recording and compare it with the base branch
+        shell: bash
+        run: |
+          set +e
+          uv run deskrag baseline check --base-dir "$RUNNER_TEMP/base/baselines/dev" > "$RUNNER_TEMP/check.md" 2>&1
+          status=$?
+          set -e
+          cat "$RUNNER_TEMP/check.md"
+          cat "$RUNNER_TEMP/check.md" >> "$GITHUB_STEP_SUMMARY"
+          exit "$status"

@@ -54,6 +54,50 @@ def promote(
         fail(exc)
 
 
+@baseline_app.command("record")
+def record() -> None:
+    """Run the dev split on this machine and replace baselines/dev and baselines/dev-retrieval.
+
+    Only on the reference machine, from a clean tree. Commit the result with your change.
+    """
+    from deskrag.evaluation.replay import record_baselines
+
+    try:
+        for target in record_baselines():
+            typer.echo(f"Recorded: {target}")
+    except (ValueError, OSError) as exc:
+        fail(exc)
+
+
+@baseline_app.command("check")
+def check(
+    baseline_dir: Annotated[Path, typer.Option(help="The recorded run to check.")] = Path(
+        "baselines/dev"
+    ),
+    base_dir: Annotated[
+        Path | None, typer.Option(help="The base branch's copy of that run, to compare with.")
+    ] = None,
+    config: Annotated[Path, typer.Option(help="The config the run was recorded with.")] = Path(
+        "configs/baseline.yaml"
+    ),
+    cases: Annotated[Path, typer.Option(help="Test-set file or directory.")] = Path("data/testset"),
+    gates: Annotated[Path, typer.Option(help="Metric tolerances.")] = GATES,
+) -> None:
+    """Check a recorded run without calling a model: fresh, honestly scored, and not worse.
+
+    Exit 1 on a gated regression, 2 when the recording is stale or invalid.
+    """
+    from deskrag.evaluation.replay import check_baseline
+
+    try:
+        text, blocked = check_baseline(baseline_dir, config, cases, base_dir, gates)
+    except (ValueError, OSError) as exc:
+        fail(exc)
+    typer.echo(text)
+    if blocked:
+        raise typer.Exit(1)
+
+
 @runs_app.command("list")
 def list_runs(runs_dir: Annotated[Path, typer.Option(help="Run root.")] = Path("runs")) -> None:
     """List runs newest first; flag malformed runs rather than hiding them."""
