@@ -2,6 +2,8 @@
 
 Proposed by Omar on 2026-11-09. Not reviewed by the group yet.
 
+Updated on 2026-11-11 after week 1: CI no longer runs the model. The LLM gate checks a run recorded on the reference Mac ([why](#why-ci-does-not-run-the-model)). [Week 1 status](#week-1-status) has the first results.
+
 ## Why we are changing
 
 Another group claimed the domain-specific RAG topic before us. Our choices were to evaluate differently from them, or to move to the topic "Evaluation harness for an LLM feature, with CI regression testing". The instructor confirmed that we can take the harness topic and keep the help-desk bot as the feature under test.
@@ -22,7 +24,7 @@ Three questions replace the three in the midterm report:
 2. **False alarms.** How often does CI block a change that should not matter?
 3. **Sensitivity.** How many cases does the gate need before it can catch a regression of a given size?
 
-Question 3 matters because the gate is weak on a small set. `compare` blocks only when a gated metric is worse than its tolerance and the exact two-sided McNemar test gives p < 0.05. That needs at least 6 pass-to-fail flips with none the other way (p = 0.03125). Five flips give p = 0.0625. About 20 of the 26 dev cases pass today, so a change has to break 6 of those 20 before the gate can block it.
+Question 3 matters because the gate is weak on a small set. `compare` blocks only when a gated metric is worse than its tolerance and the exact two-sided McNemar test gives p < 0.05. That needs at least 6 pass-to-fail flips with none the other way (p = 0.03125). Five flips give p = 0.0625. About 20 of the 26 dev cases pass today, so a change has to break 6 of those 20 before the gate can block it. Week 1 hit this twice: two real regressions broke 3 and 4 cases, and both got through.
 
 ## What happens to the existing work
 
@@ -37,41 +39,35 @@ Question 3 matters because the gate is weak on a small set. `compare` blocks onl
 
 ## CI layers
 
-| Check | When it runs | What it compares | State on main, 2026-11-09 |
+| Check | When it runs | What it compares | State on the fork's main, 2026-11-11 |
 |---|---|---|---|
-| Lint, tests, fixture contract | Every PR | A planted fixture must fail | Passing |
-| Retrieval gate | Every PR, no LLM | BM25 on all dev cases against `baselines/dev-retrieval` | Advisory, and failing: the baseline is missing |
-| LLM gate (new) | PRs that touch `src/deskrag/rag/`, `configs/`, `baselines/`, or `data/testset/` | Ollama on the GitHub runner, a frozen subset of cases, against `baselines/ci-llm` | Not built |
-| Full run | The reference Mac, `make regress` | All dev cases against `baselines/dev` | Works, but `baselines/dev` is missing |
+| Lint, tests, fixture contract | Every PR | A planted fixture must fail | Required, passing |
+| Retrieval gate | Every PR, no LLM | BM25 on all dev cases against `baselines/dev-retrieval` | Required, passing |
+| LLM gate | Every PR, no LLM, about 10 s | The committed `baselines/dev` against the base branch's copy | Required, passing |
+| Recording | The reference Mac, `make record`, about 3 minutes | Runs all dev cases and replaces `baselines/dev` and `baselines/dev-retrieval` | Works |
+
+Branch protection on the fork's main requires all four CI jobs (`test`, `regression-contract`, `retrieval-gate`, `llm-gate`), for admins too. `make regress` still runs the dev split and compares it with `baselines/dev` without changing anything, so an author can see the verdict before recording.
 
 ### The LLM gate
 
-The job does five things:
+The PR author runs `make record` on the reference Mac and commits the new recording with the change. CI never calls a model. The `llm-gate` job takes the base branch's `baselines/dev` and runs `deskrag baseline check`, which answers three questions:
 
-1. Checks out the code and installs dependencies.
-2. Installs Ollama and pulls the model, using a cache so the download happens once.
-3. Runs `deskrag eval run` with `configs/ci-llm.yaml` on the case IDs listed in `configs/ci-llm-cases.txt`.
-4. Runs `deskrag regress --candidate <that run> --baseline baselines/ci-llm --gates configs/regression.yaml`. This already works: `regress` accepts a recorded run.
-5. Writes `compare.md` to the job summary and uploads the run as an artifact.
+1. **Fresh?** The pipeline code, the config and its prompt, the corpus, and the dev cases must match the fingerprints stored with the recording. If any differ, the check fails and names which.
+2. **Honest?** It scores the recorded answers again. The result must equal the committed scores.
+3. **Worse?** It compares the recording with the base branch's copy, with the same McNemar rule and tolerances as `compare`. A gated regression fails the check.
 
 Rules:
 
-- **Same kind of machine.** A manually triggered workflow records `baselines/ci-llm` on a hosted runner, and the run is promoted and committed through a PR. It is only ever compared with other hosted-runner runs. This is the one baseline that does not come from the reference Mac.
-- **Frozen subset.** `configs/ci-llm-cases.txt` lists at least 20 case IDs, balanced across the 7 case types. It does not change when new cases are added, so new cases do not invalidate the baseline.
+- **One kind of change per PR.** Two recordings are comparable only when they share the cases, the corpus, and the machine. A PR that changes the data or the recording machine passes without a comparison, and the reviewer reads the new numbers. A PR that changes more than one of system, data, and machine fails and has to be split. [baselines/README.md](../baselines/README.md) has the table.
+- **Clean tree.** `make record` refuses to run with uncommitted changes, so each recording matches a commit.
 - **Unchanged gate rules.** Tolerance 0.05 and alpha 0.05 on e2e_pass, hit@5, and abstain_correct, as committed in `configs/regression.yaml`.
-- **Always starts.** The job starts on every PR and skips its slow steps when none of the listed paths changed. A required check that never starts would leave the PR stuck.
+- **Trusted recorder.** CI cannot prove that the recorded answers came from the model. Re-scoring catches edited scores, not edited answers.
 
-### What the trial run decides
+### Why CI does not run the model
 
-GitHub runners have no GPU, so speed is unknown. The first task is a trial workflow that runs 10 cases with the pinned model `qwen3:4b-instruct-2507-q4_K_M` and reports seconds per case.
+The first version of this design ran Ollama on GitHub's hosted runners (4 cores, 15 GB RAM, no GPU) on a frozen subset of cases. Record and replay was the fallback if no model could run 20 cases in 10 minutes. A trial picked `llama3.2:3b` on 23 cases. Measurements the next day showed that the trial could not be trusted, and on 2026-11-11 I switched to replay.
 
-- If 20 cases fit in 10 minutes, setup included, the gate uses the pinned model and the largest balanced subset that fits.
-- If not, the trial repeats with a smaller model, and `configs/ci-llm.yaml` names that model.
-- If no model gets 20 cases into 10 minutes, the fallback is record and replay: the PR author runs the eval locally and commits the run, and CI re-scores and compares it without calling a model.
-
-### Trial result
-
-Run on 2026-11-10 on GitHub-hosted `ubuntu-latest` runners (4 cores, 15 GB RAM, no GPU) with Ollama 0.40.3. Each model ran the first 10 dev cases (`ff-001` to `ff-010`, all answerable) through `configs/baseline.yaml` with only the model changed. No run had an infra error or a timeout.
+**Trial, 2026-11-10.** Each model ran the first 10 dev cases (`ff-001` to `ff-010`, all answerable) once, through `configs/baseline.yaml` with only the model changed, on Ollama 0.40.3. No run had an infra error or a timeout.
 
 | Model | Passed (of 10) | Seconds per case | Setup overhead (s) | Cases that fit in 10 min |
 |---|---:|---:|---:|---:|
@@ -80,24 +76,35 @@ Run on 2026-11-10 on GitHub-hosted `ubuntu-latest` runners (4 cores, 15 GB RAM, 
 | `llama3.2:1b` | 2 | 27.3 | 118 | 17 |
 | `gemma3:1b` | 2 | 31.3 | 104 | 15 |
 
-Seconds per case is the wall time of the whole eval step divided by 10, so it includes loading the model and building the index. Setup overhead is the rest of the job (checkout, dependencies, installing Ollama) plus a 60 s allowance for restoring the model from cache. Installing Ollama took 34 to 71 s and pulling a model about 10 s.
+Seconds per case is the wall time of the whole eval step divided by 10, so it includes loading the model and building the index. Setup overhead is the rest of the job (checkout, dependencies, installing Ollama) plus a 60 s allowance for restoring the model from cache. For comparison, the pinned model takes 5.8 s per case on the reference Mac, where it also passes 6 of these 10 cases.
 
-For comparison, the pinned model takes 5.8 s per case on the reference Mac, where it also passes 6 of these 10 cases.
+**What went wrong.** Each model ran once, each on a different runner. Recording the gate's baseline with `llama3.2:3b` on the 23 cases then took 22 min 47 s, not the 9 minutes the trial predicted. To find out why, I ran both candidate models on the same 23 cases twice each, in parallel, and logged each runner's CPU (Actions run 42937645956):
 
-**Decision: the LLM gate runs `llama3.2:3b` on 23 cases.** The pinned model is about 9 times slower on the runner than on the Mac and fits only 9 cases. `llama3.2:3b` is the only model that fits at least 20. It is also the alternative model from the bake-off ([model-bakeoff.md](model-bakeoff.md)).
+| Model | Runner CPU | Mean seconds per answer | Job time | Passed (of 23) |
+|---|---|---:|---|---:|
+| `llama3.2:3b` | AMD EPYC 9V45 | 19.4 | 8 min 48 s | 17 |
+| `llama3.2:3b` | Intel Xeon Platinum 8370C | 41.4 | 17 min 39 s | 17 |
+| `llama3.2:3b` | Not logged (the baseline recording) | 53.2 | 22 min 47 s | 16 |
+| `qwen3:4b-instruct-2507-q4_K_M` | AMD EPYC 9V74 | 46.7 | 19 min 26 s | 18 |
+| `qwen3:4b-instruct-2507-q4_K_M` | AMD EPYC 7763 | 74.9 | 29 min 46 s | 18 |
 
-What this means for the gate: it tests the same retriever, prompt, parser, and scoring as the baseline system, but with a different model. A change that only hurts `qwen3:4b` would pass the gate and has to be caught by `make regress` on the Mac.
+- **Speed.** The same model on the same cases took 2.7 times as long on the slowest runner as on the fastest. Only one of the five runs finished in 10 minutes. The runner a job lands on decides its time, so a trial with one job per model cannot rank models.
+- **Answers.** Two fresh runners do not always give the same answer. The two parallel `llama3.2:3b` runs matched word for word, but the recording's text differed from them on 7 of 23 cases, and its verdict differed on one (`ff-009`). The two `qwen3:4b` runs gave the same verdict on all 23 cases and the same text on 21. Both also gave the same verdicts as the Mac on all 23.
+- **Abstention.** `llama3.2:3b` refused only 5 of the 11 unanswerable questions in the subset. A change that stopped it from refusing could break at most those 5 cases, one short of the 6 the gate needs to block.
+
+So a model check on hosted runners would cost 9 to 30 minutes per pull request, could run past a time limit on a slow runner, and would add verdict flips that have nothing to do with the change. Replay avoids all of this. The model runs only on the Mac, where three runs of unchanged code gave the same verdict on all 26 cases, and CI checks the recording in about 10 seconds.
 
 ### Gaps in the current code
 
-- `deskrag eval run --retrieval-only` is still a stub (`src/deskrag/commands/evaluate.py`, line 36, exit 3). The retrieval gate cannot run until this is finished, even with a baseline.
-- `eval run` has `--limit N` but no way to run a named list of cases. The LLM gate needs one.
-- `compare` refuses a changed dataset fingerprint. Every PR that adds cases must re-record `baselines/dev-retrieval`. That takes seconds and needs no LLM. A PR that edits a case in the frozen subset, such as a label fix, must re-record `baselines/ci-llm` as well.
-- `main` is not protected, so a red check does not stop a merge today.
+Week 1 closed three of the four gaps listed here on 2026-11-09: `eval run --retrieval-only` works (fork PR #3), `eval run --case-ids` runs a named list of cases (fork PR #4), and the fork's main is protected. Still open:
+
+- **Applicability changes.** `compare` stops with "Applicability changed" (exit 2) when a case has a score in one run and none in the other. A format error has no `abstain_correct`, so a change that causes format errors fails the gate as an invalid comparison instead of as a regression. The `maxtok32` planted regression will hit this. It needs a decision in week 2.
+- **Data PRs are not compared.** Every PR that adds or edits cases has to run `make record`, and the gate accepts it without a comparison. The reviewer is the only check on a data PR.
+- **Latency warns on noise.** Three runs of unchanged code on the Mac gave `latency_p95_s` from 5.4 to 9.1 s, a wider spread than its 2.0 s tolerance. It is warn-only, so it never blocks, but its warnings mean little at this size.
 
 ## The experiment
 
-Gate settings are frozen at the committed values before any planted run, so the results are not tuned to the planted set.
+Gate settings are frozen at the committed values before any planted run, so the results are not tuned to the planted set. Two planted regressions already ran in week 1 with these settings.
 
 ### Planted regressions
 
@@ -105,10 +112,10 @@ Each one is a one-line config change or a prompt file.
 
 | Name | Change | Metric that should move |
 |---|---|---|
-| `k1` (exists) | `retrieval.k` 5 to 1 | hit@5, e2e_pass |
+| `k1` (exists, ran in week 1) | `retrieval.k` 5 to 1 | hit@5, e2e_pass |
 | `k3` (exists) | `retrieval.k` 5 to 3 | hit@5, mildly |
 | `closed-book` (exists) | No retrieval | hit@5, e2e_pass |
-| `no-abstain` | Prompt v1 without the abstain rule | abstain_correct, missed_abstain_rate |
+| `no-abstain` (ran in week 1) | Prompt v1 without its two abstain rules | abstain_correct, missed_abstain_rate |
 | `no-cite` | Prompt v1 without the citation rule | citation_valid, which is not gated |
 | `chunk50` | `chunking.size_words` 300 to 50, overlap 10 | hit@5, fact_recall |
 | `ctx1024` | `llm.num_ctx` 4096 to 1024, which cuts off the context | e2e_pass, fact_recall |
@@ -121,7 +128,7 @@ These must not be blocked.
 
 | Name | Change |
 |---|---|
-| `rerun-1` to `rerun-5` | The baseline config, run again on five fresh runners |
+| `rerun-1` to `rerun-5` | The baseline config, recorded again on the Mac. Three runs exist so far and agree on all 26 cases |
 | `reworded` | Prompt v1 reworded with the same meaning |
 | `seed43` | `llm.seed` 42 to 43 |
 
@@ -131,9 +138,9 @@ These must not be blocked.
 
 ### What is recorded
 
-For every run: the verdict of each check, the metric that caught it, the flip counts b and c, p, the flipped cases, and minutes to verdict.
+For every run: the verdict of each check, the metric that caught it, the flip counts b and c, p, the flipped cases, and minutes to verdict (recording plus CI).
 
-A manually triggered matrix workflow runs every config through the LLM gate steps, so the detection and false-alarm tables come from one workflow run. The same configs also run in full on the reference Mac. Two real PRs, one bad and one harmless, are the live demo.
+Every config runs on the Mac with `make regress CONFIG=...`, which applies the same comparison as the LLM gate, so each row is the verdict CI would give. Configs that change retrieval also run retrieval-only against `baselines/dev-retrieval`, as the retrieval gate does. Two real PRs, one bad and one harmless, are the live demo. At 26 cases the bad one has to break at least 6 cases, as closed-book does.
 
 ### Question 3
 
@@ -141,7 +148,7 @@ No new LLM calls. A script takes the full Mac runs for the baseline and each pla
 
 ### Results tables
 
-1. **Detection:** one row per planted regression, with the verdict from the retrieval gate, the LLM gate, and the full run.
+1. **Detection:** one row per planted regression, with the verdict from the retrieval gate and the LLM gate.
 2. **False alarms:** one row per control, with verdicts and flip counts.
 3. **Sensitivity:** detection rate by subset size.
 
@@ -155,10 +162,7 @@ No new LLM calls. A script takes the full Mac runs for the baseline and each pla
 
 I do all of it in my own fork, and the group reviews one pull request from the fork into the team repo.
 
-The fork is needed for two things I cannot do in the team repo:
-
-- **Branch protection.** Only the repo owner can require checks. In the fork I can turn it on, so the demo PR is really blocked.
-- **Manually triggered workflows.** They only run when the workflow file is on the default branch. The baseline recording and the experiment matrix both need this.
+The fork is needed for branch protection. Only the repo owner can require checks; in the fork I can, so a red check really blocks a merge. The first design also needed the fork for manually triggered workflows, but replay does not use any.
 
 GitHub-hosted runners are free for public repositories, so the fork costs nothing.
 
@@ -166,20 +170,20 @@ Commits are grouped by workstream area so each owner can review their part:
 
 | Area | Files | Reviewer |
 |---|---|---|
-| Runner | `src/deskrag/commands/evaluate.py`, `src/deskrag/evaluation/runner.py`, their tests | WS4 |
-| CI and baselines | `.github/**`, `baselines/**`, `configs/ci-*`, `Makefile` | WS5 |
-| Prompts and planted configs | `src/deskrag/rag/prompts/**`, `configs/experiments/**` | WS3 |
+| Runner | `src/deskrag/commands/evaluate.py`, `src/deskrag/evaluation/{runner,retrieval_only,subset}.py`, their tests | WS4 |
+| CI and baselines | `.github/**`, `baselines/**`, `configs/ci-*`, `Makefile`, `src/deskrag/evaluation/replay.py`, `src/deskrag/commands/regress.py`, their tests | WS5 |
+| LLM client, prompts, planted configs | `src/deskrag/rag/llm/**`, `src/deskrag/rag/prompts/**`, `configs/experiments/**` | WS3 |
 | Cases | `data/testset/omar.jsonl` | WS1 |
 | Docs | `docs/**` | Everyone |
 
 ## Order of work
 
-1. Trial run on the GitHub runner.
-2. Finish `eval run --retrieval-only` and add the case-ID list option.
-3. Record the three baselines, make the retrieval gate blocking, add the LLM gate job.
+1. Trial run on the GitHub runner. Done; it led to replay.
+2. Finish `eval run --retrieval-only` and add the case-ID list option. Done.
+3. Record the baselines, make the retrieval gate blocking, add the LLM gate job. Done, as replay.
 4. Write the 34 new cases.
-5. Planted configs and prompts, the matrix workflow, the control runs.
-6. Full runs on the Mac, and the resampling script.
+5. Planted configs and prompts, and the control runs, all on the Mac.
+6. The resampling script.
 7. Report, repo docs, deck.
 
 | Week | Dates | Done when |
@@ -191,9 +195,28 @@ Commits are grouped by workstream area so each owner can review their part:
 The final is due two to four weeks after Nov 9. If it is two weeks, cut in this order:
 
 1. The model swap, dense, and hybrid.
-2. The matrix workflow. Run the planted configs on the Mac and keep the two demo PRs.
-3. Cases stop at 45.
-4. Resampling at one subset size instead of four.
+2. Cases stop at 45.
+3. Resampling at one subset size instead of four.
+
+## Week 1 status
+
+As of 2026-11-11. Steps 1 to 3 are finished and the LLM gate passes on the fork's main (fork PRs #1 to #10). The 19 new cases are not started.
+
+| Baseline | Numbers |
+|---|---|
+| `baselines/dev` (full pipeline, 26 cases) | e2e_pass 0.769 (20/26), hit@5 1.0, abstain_correct 0.923, fact_recall 0.769, no format errors |
+| `baselines/dev-retrieval` (BM25 only) | hit@1 0.714, hit@3 1.0, hit@5 1.0, MRR 0.821 |
+
+What the gates did with the changes they have seen so far:
+
+| Change | Gate | Result | Right? |
+|---|---|---|---|
+| None: the dev split recorded again on the Mac | LLM | OK on every gated metric, no flips. Three such runs agree on all 26 cases | Yes |
+| Prompt without its two abstain rules, old recording kept (fork PR #11, step 1) | LLM | Failed: "baselines/dev is out of date: the config or its prompt changed". Branch protection blocked the merge | Yes |
+| The same prompt, recorded with `make record` (step 2) | LLM | Passed. e2e_pass 0.769 to 0.692 and abstain_correct 0.923 to 0.846. The bot answered three unanswerable questions it used to refuse (`ff-016`, `ff-018`, `ff-019`) and one answerable question it used to refuse (`kp-005`): b = 3, c = 1, p = 0.625, POSSIBLE | No: a real regression got through |
+| `retrieval.k` 5 to 1, retrieval only | Retrieval | hit@5 1.0 to 0.714. Four cases lost their source page (`ff-008` to `ff-011`), none gained one: b = 4, c = 0, p = 0.125, POSSIBLE | No: a real regression got through |
+
+The mechanics work: a stale recording fails, branch protection blocks the merge, and an unchanged rerun passes with no flips. The weak spot is the one question 3 is about. Both real regressions broke 3 or 4 cases, and at 26 cases the gate needs 6 with none going the other way. I did not change the gate settings to catch them; they stay frozen for the experiment. Abstention flips can only come from unanswerable cases and retrieval flips only from answerable ones, so the new cases need both kinds.
 
 ## What still needs the group
 
@@ -204,15 +227,15 @@ The final is due two to four weeks after Nov 9. If it is two weeks, cut in this 
 
 ## Report and docs
 
-- **Report:** new title, abstract, and the three questions. Sections IV-A to IV-C shrink into "the feature under test". Section IV-D grows into the main method. A new results section holds the three tables. Related work moves toward regression testing and behavioral testing of language models. The WS3 name placeholder in Section IV-F gets fixed.
-- **Repo docs:** the CI section of [design.md](design.md) and the owners and milestones in [workplan.md](workplan.md) are updated to match.
+- **Report:** new title, abstract, and the three questions. Sections IV-A to IV-C shrink into "the feature under test". Section IV-D grows into the main method. A new results section holds the three tables, plus the runner measurements that explain why CI replays a recording. Related work moves toward regression testing and behavioral testing of language models. The WS3 name placeholder in Section IV-F gets fixed.
+- **Repo docs:** the CI section of [design.md](design.md) and the owners and milestones in [workplan.md](workplan.md) are updated to match. [baselines/README.md](../baselines/README.md) already describes replay.
 - **Deck:** same layout, with the story changed to plant, detect, false alarms.
 
 Working title: "An Evaluation Harness with CI Regression Testing for a University Help-Desk LLM Feature".
 
 ## Risks
 
-- **The runner is too slow.** Covered by the trial run and its two fallbacks.
-- **Fresh runners disagree with each other.** Ollama output can differ across hardware even at temperature 0. The five control runs measure this, and the number goes in the report as the gate's false-alarm rate.
-- **The gate is weak on small sets.** A 20-case subset only catches large breaks. Question 3 reports this plainly, and the full run on the Mac covers the rest.
-- **Hosted runners are not the reference machine.** Results quoted for the bot come from full runs on the Mac. The hosted-runner baseline exists only for the gate.
+- **Recording depends on one machine.** Every baseline comes from the reference Mac. If it is unavailable, or Ollama or the model changes, the baselines have to be recorded again on another machine, and that PR passes without a comparison.
+- **The recorder is trusted.** CI cannot tell whether a recorded answer came from the model. Re-scoring catches edited scores but not edited answers, so `baselines/` diffs need a real review.
+- **The Mac disagrees with itself.** So far three runs of unchanged code agreed on all 26 cases. The five control reruns measure it, and the number goes in the report as the gate's false-alarm rate.
+- **The gate is weak on small sets.** Week 1 showed it: two real regressions got through. Question 3 reports this plainly, and more cases raise the gate's power without loosening its rules.
