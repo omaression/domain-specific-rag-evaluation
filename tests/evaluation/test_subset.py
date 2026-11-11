@@ -4,7 +4,7 @@ import pytest
 
 from deskrag.core.dataset import dataset_sha256
 from deskrag.core.schemas import TestCase
-from deskrag.evaluation.subset import pick_balanced, read_case_ids, select_cases
+from deskrag.evaluation.subset import read_case_ids, select_cases
 
 
 def make_case(case_id: str, case_type: str) -> TestCase:
@@ -66,12 +66,3 @@ def test_a_new_case_does_not_change_the_subset_fingerprint():
     before = dataset_sha256(select_cases(CASES, ["a1", "o1"]))
     grown = [*CASES, make_case("a4", "single_doc")]
     assert dataset_sha256(select_cases(grown, ["a1", "o1"])) == before
-
-
-def test_pick_balanced_alternates_halves_and_rotates_types():
-    # answerable order: m1, a1, a2, a3; unanswerable order: o1, p1, o2
-    assert pick_balanced(CASES, 4) == ["a1", "m1", "o1", "p1"]
-
-
-def test_pick_balanced_returns_everything_when_asked_for_more():
-    assert pick_balanced(CASES, 99) == ["a1", "a2", "a3", "m1", "o1", "o2", "p1"]
