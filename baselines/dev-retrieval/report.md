@@ -1,8 +1,8 @@
 # Evaluation report
 
-Run: `20261111-171727-ci-retrieval-d045262d`
-Split: dev; cases: 45; reps: 1
-Dataset SHA256: `1f4fad8833f53967580f118facdac6184dfc1498ea894feada7f06410de85ac2`
+Run: `20261111-174749-ci-retrieval-d045262d`
+Split: dev; cases: 60; reps: 1
+Dataset SHA256: `2c1bde89762745e6633a8a2e2f30a26039ecb656de1209501b51731baa26bc67`
 Config SHA256: `d045262d3b07af2dd08a233e536ee4064e0a88e83e10d2d23e0d97e73dae52ad`
 Machine: reference
 
@@ -10,8 +10,8 @@ Machine: reference
 
 | Count | Value |
 |---|---:|
-| cases | 45 |
-| ok | 45 |
+| cases | 60 |
+| ok | 60 |
 | errors | 0 |
 | truncated | 0 |
 | parse_errors | 0 |
@@ -32,15 +32,15 @@ Machine: reference
 | fact_recall | n/a |
 | false_abstain_rate | n/a |
 | format_error_rate | n/a |
-| hit@1 | 0.708333 |
-| hit@3 | 0.958333 |
-| hit@5 | 1 |
+| hit@1 | 0.666667 |
+| hit@3 | 0.878788 |
+| hit@5 | 0.909091 |
 | latency_p50_s | n/a |
 | latency_p95_s | n/a |
 | missed_abstain_rate | n/a |
-| mrr | 0.822917 |
+| mrr | 0.765152 |
 | prompt_tokens_mean | n/a |
-| recall@5 | 1 |
+| recall@5 | 0.878788 |
 
 ## false_premise
 
@@ -110,15 +110,15 @@ Machine: reference
 | fact_recall | n/a |
 | false_abstain_rate | n/a |
 | format_error_rate | n/a |
-| hit@1 | 0.8 |
-| hit@3 | 1 |
-| hit@5 | 1 |
+| hit@1 | 0.666667 |
+| hit@3 | 0.888889 |
+| hit@5 | 0.888889 |
 | latency_p50_s | n/a |
 | latency_p95_s | n/a |
 | missed_abstain_rate | n/a |
-| mrr | 0.866667 |
+| mrr | 0.759259 |
 | prompt_tokens_mean | n/a |
-| recall@5 | 1 |
+| recall@5 | 0.777778 |
 
 ## out_of_domain
 
@@ -162,15 +162,15 @@ Machine: reference
 | fact_recall | n/a |
 | false_abstain_rate | n/a |
 | format_error_rate | n/a |
-| hit@1 | 0.333333 |
-| hit@3 | 0.833333 |
-| hit@5 | 1 |
+| hit@1 | 0.444444 |
+| hit@3 | 0.777778 |
+| hit@5 | 0.888889 |
 | latency_p50_s | n/a |
 | latency_p95_s | n/a |
 | missed_abstain_rate | n/a |
-| mrr | 0.569444 |
+| mrr | 0.601852 |
 | prompt_tokens_mean | n/a |
-| recall@5 | 1 |
+| recall@5 | 0.888889 |
 
 ## personal
 
@@ -214,25 +214,29 @@ Machine: reference
 | fact_recall | n/a |
 | false_abstain_rate | n/a |
 | format_error_rate | n/a |
-| hit@1 | 0.846154 |
-| hit@3 | 1 |
-| hit@5 | 1 |
+| hit@1 | 0.8 |
+| hit@3 | 0.933333 |
+| hit@5 | 0.933333 |
 | latency_p50_s | n/a |
 | latency_p95_s | n/a |
 | missed_abstain_rate | n/a |
-| mrr | 0.923077 |
+| mrr | 0.866667 |
 | prompt_tokens_mean | n/a |
-| recall@5 | 1 |
+| recall@5 | 0.933333 |
 
 ## Failure counts
 
 | Tag | Count |
 |---|---:|
+| RETRIEVAL_MISS | 3 |
 
 ## Failed cases
 
 | Case | Rep | Status | Failure tags |
 |---|---:|---|---|
+| om-020 | 0 | ok | RETRIEVAL_MISS |
+| om-024 | 0 | ok | RETRIEVAL_MISS |
+| om-027 | 0 | ok | RETRIEVAL_MISS |
 
 Infrastructure errors are unscored and prevent comparison or baseline promotion.
 A report is descriptive. A separate comparison determines regression verdicts.
