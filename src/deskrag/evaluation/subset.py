@@ -1,4 +1,4 @@
-"""Pick a fixed subset of the test set by case ID, e.g. the CI subset in configs/ci-llm-cases.txt."""
+"""Pick a fixed subset of the test set by case ID, e.g. to re-run only the cases that flipped."""
 
 from pathlib import Path
 
@@ -27,29 +27,3 @@ def select_cases(cases: list[TestCase], case_ids: list[str]) -> list[TestCase]:
     if missing:
         raise ValueError(f"case IDs not in the selected split: {', '.join(missing)}")
     return [case for case in cases if case.case_id in wanted]
-
-
-def pick_balanced(cases: list[TestCase], n: int) -> list[str]:
-    """Up to `n` case IDs, sorted.
-
-    Answerable and unanswerable cases alternate, and inside each half the case types take turns,
-    so a small subset covers both halves and every type the test set has.
-    """
-    halves: list[list[str]] = []
-    for answerable in (True, False):
-        by_type: dict[str, list[str]] = {}
-        for case in cases:
-            if case.answerable == answerable:
-                by_type.setdefault(case.case_type, []).append(case.case_id)
-        halves.append(_take_turns([by_type[name] for name in sorted(by_type)], len(cases)))
-    return sorted(_take_turns(halves, n))
-
-
-def _take_turns(queues: list[list[str]], n: int) -> list[str]:
-    queues = [list(queue) for queue in queues]
-    picked: list[str] = []
-    while len(picked) < n and any(queues):
-        for queue in queues:
-            if queue and len(picked) < n:
-                picked.append(queue.pop(0))
-    return picked
