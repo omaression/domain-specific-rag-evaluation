@@ -1,0 +1,9 @@
+{
+  "code_sha256": "10eb52e9cc43815e0c3935254264a1bb70e9ae7f49370ce8ff82a9fbddb884f2",
+  "code_paths": [
+    "src/deskrag/core",
+    "src/deskrag/rag",
+    "src/deskrag/systems.py",
+    "uv.lock"
+  ]
+}
