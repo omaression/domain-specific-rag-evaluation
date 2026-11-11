@@ -1,8 +1,8 @@
 # Evaluation report
 
-Run: `20261111-013135-ci-retrieval-d045262d`
-Split: dev; cases: 26; reps: 1
-Dataset SHA256: `73ac090000605164da8263f578a34e16766d762a64de3b43d7f90da4affe9c21`
+Run: `20261111-171727-ci-retrieval-d045262d`
+Split: dev; cases: 45; reps: 1
+Dataset SHA256: `1f4fad8833f53967580f118facdac6184dfc1498ea894feada7f06410de85ac2`
 Config SHA256: `d045262d3b07af2dd08a233e536ee4064e0a88e83e10d2d23e0d97e73dae52ad`
 Machine: reference
 
@@ -10,8 +10,8 @@ Machine: reference
 
 | Count | Value |
 |---|---:|
-| cases | 26 |
-| ok | 26 |
+| cases | 45 |
+| ok | 45 |
 | errors | 0 |
 | truncated | 0 |
 | parse_errors | 0 |
@@ -32,13 +32,13 @@ Machine: reference
 | fact_recall | n/a |
 | false_abstain_rate | n/a |
 | format_error_rate | n/a |
-| hit@1 | 0.714286 |
-| hit@3 | 1 |
+| hit@1 | 0.708333 |
+| hit@3 | 0.958333 |
 | hit@5 | 1 |
 | latency_p50_s | n/a |
 | latency_p95_s | n/a |
 | missed_abstain_rate | n/a |
-| mrr | 0.821429 |
+| mrr | 0.822917 |
 | prompt_tokens_mean | n/a |
 | recall@5 | 1 |
 
@@ -110,13 +110,13 @@ Machine: reference
 | fact_recall | n/a |
 | false_abstain_rate | n/a |
 | format_error_rate | n/a |
-| hit@1 | 0.5 |
+| hit@1 | 0.8 |
 | hit@3 | 1 |
 | hit@5 | 1 |
 | latency_p50_s | n/a |
 | latency_p95_s | n/a |
 | missed_abstain_rate | n/a |
-| mrr | 0.666667 |
+| mrr | 0.866667 |
 | prompt_tokens_mean | n/a |
 | recall@5 | 1 |
 
@@ -163,12 +163,12 @@ Machine: reference
 | false_abstain_rate | n/a |
 | format_error_rate | n/a |
 | hit@1 | 0.333333 |
-| hit@3 | 1 |
+| hit@3 | 0.833333 |
 | hit@5 | 1 |
 | latency_p50_s | n/a |
 | latency_p95_s | n/a |
 | missed_abstain_rate | n/a |
-| mrr | 0.555556 |
+| mrr | 0.569444 |
 | prompt_tokens_mean | n/a |
 | recall@5 | 1 |
 
@@ -214,13 +214,13 @@ Machine: reference
 | fact_recall | n/a |
 | false_abstain_rate | n/a |
 | format_error_rate | n/a |
-| hit@1 | 0.888889 |
+| hit@1 | 0.846154 |
 | hit@3 | 1 |
 | hit@5 | 1 |
 | latency_p50_s | n/a |
 | latency_p95_s | n/a |
 | missed_abstain_rate | n/a |
-| mrr | 0.944444 |
+| mrr | 0.923077 |
 | prompt_tokens_mean | n/a |
 | recall@5 | 1 |
 
