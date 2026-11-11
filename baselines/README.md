@@ -1,34 +1,46 @@
 # Baselines
 
-Recorded runs that `deskrag compare` and CI measure new runs against. Each folder is a promoted run (`deskrag baseline promote`).
+Runs of the dev split, recorded on the reference machine and committed. CI never calls a model: it checks these recordings instead.
 
-| Baseline | What it is | Recorded on | Used by |
-|---|---|---|---|
-| `dev-retrieval/` | BM25, retrieval only, every dev case (`configs/ci-retrieval.yaml`) | any machine; no Ollama | CI `retrieval-gate` |
-| `dev/` | Full pipeline, every dev case (`configs/baseline.yaml`) | the reference Mac (`DESKRAG_MACHINE=reference`, Ollama 0.40.3) | `make regress` |
+| Baseline | What it is | Checked by |
+|---|---|---|
+| `dev/` | Full pipeline, every dev case (`configs/baseline.yaml`) | CI `llm-gate`, and `make regress` locally |
+| `dev-retrieval/` | BM25, retrieval only, every dev case (`configs/ci-retrieval.yaml`) | CI `retrieval-gate`, which runs BM25 again on the runner |
 
-`retrieval-gates.yaml` holds the tolerances for the retrieval gate. The other gates use `configs/regression.yaml`.
+Each folder holds the run's files plus `source.json`, the fingerprint of the pipeline code it ran on. `retrieval-gates.yaml` holds the tolerances for the retrieval gate; `llm-gate` uses `configs/regression.yaml`.
 
-## When a baseline must be re-recorded
+## Recording
 
-`compare` refuses to compare runs whose dataset or corpus fingerprint differs. So a PR that adds, edits, or removes a dev case, or changes a corpus page, must re-record every baseline that covers it, in the same PR. `promote` never overwrites, so remove the old folder first.
-
-### `dev-retrieval`
+On the reference machine (Omar's Mac, Ollama 0.40.3), with Ollama running, `DESKRAG_LLM_CACHE` unset, and nothing uncommitted:
 
 ```bash
-git rm -r -q baselines/dev-retrieval
-DESKRAG_MACHINE=reference uv run deskrag eval run --config configs/ci-retrieval.yaml --split dev --retrieval-only --run-dir runs/dev-retrieval-baseline
-uv run deskrag baseline promote runs/dev-retrieval-baseline --name dev-retrieval
-git add baselines/dev-retrieval
+make record
+git add baselines
+git commit -m "Record baselines"
 ```
 
-### `dev`
+`make record` runs the dev split twice, with and without the LLM, and replaces both folders. It takes about 3 minutes for 26 cases. If either run fails, nothing is replaced.
 
-Needs the reference Mac with Ollama running and `DESKRAG_LLM_CACHE` unset. About 3 minutes for 26 cases.
+To see what a change does before recording it, run `make regress`. It compares a fresh run with `baselines/dev` and changes nothing.
 
-```bash
-git rm -r -q baselines/dev
-DESKRAG_MACHINE=reference uv run deskrag eval run --config configs/baseline.yaml --split dev --run-dir runs/dev-baseline
-uv run deskrag baseline promote runs/dev-baseline --name dev
-git add baselines/dev
-```
+## What `llm-gate` checks
+
+`deskrag baseline check` runs in seconds and answers three questions:
+
+1. **Is the recording fresh?** It recomputes four fingerprints and compares them with the recording: the pipeline code (`src/deskrag/core`, `src/deskrag/rag`, `src/deskrag/systems.py`, `uv.lock`), the config and its prompt, the corpus, and the dev cases. If any differ, the check fails and names which.
+2. **Are the scores honest?** It scores the recorded answers again. The result must equal the committed scores.
+3. **Is it worse?** It compares the recording with the base branch's `baselines/dev`. A gated regression fails the check.
+
+## What each kind of change needs
+
+| The change touches | What to do | What the gate does |
+|---|---|---|
+| Docs, tests, CI files, or code outside the pipeline | Nothing | Passes: same recording as the base branch |
+| Pipeline code, the config, or the prompt | `make record` | Compares with the base branch; fails on a gated regression |
+| Cases or the corpus | `make record` | Passes without a comparison, because the runs are on different data. Review the new numbers |
+| A new reference machine | `make record` on it | Passes without a comparison, for the same reason |
+| More than one of the last three | Split the pull request | Fails |
+
+## What the gate cannot check
+
+That the recorded answers came from the model. CI trusts the person who recorded. It can only prove the recording matches this code and data and that nobody edited the scores.

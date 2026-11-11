@@ -1,7 +1,7 @@
 # Shortcuts for common commands. Without make (e.g. on Windows), run the uv commands directly.
 CONFIG ?= configs/baseline.yaml
 
-.PHONY: setup fmt lint test check eval regress
+.PHONY: setup fmt lint test check eval regress record
 
 setup:
 	uv sync
@@ -28,3 +28,8 @@ BASELINE ?= baselines/dev
 GATES ?= configs/regression.yaml
 regress:
 	uv run deskrag regress --config $(CONFIG) --baseline $(BASELINE) --gates $(GATES)
+
+# WS5: on the reference machine only, from a clean tree. Runs the dev split with and without the
+# LLM and replaces baselines/dev and baselines/dev-retrieval. CI's llm-gate checks the result.
+record:
+	DESKRAG_MACHINE=reference uv run deskrag baseline record
