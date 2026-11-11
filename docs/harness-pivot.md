@@ -96,9 +96,12 @@ So a model check on hosted runners would cost 9 to 30 minutes per pull request, 
 
 ### Gaps in the current code
 
-Week 1 closed three of the four gaps listed here on 2026-11-09: `eval run --retrieval-only` works (fork PR #3), `eval run --case-ids` runs a named list of cases (fork PR #4), and the fork's main is protected. Still open:
+Week 1 closed three of the four gaps listed here on 2026-11-09: `eval run --retrieval-only` works (fork PR #3), `eval run --case-ids` runs a named list of cases (fork PR #4), and the fork's main is protected.
 
-- **Applicability changes.** `compare` stops with "Applicability changed" (exit 2) when a case has a score in one run and none in the other. A format error has no `abstain_correct`, so a change that causes format errors fails the gate as an invalid comparison instead of as a regression. The `maxtok32` planted regression will hit this. It needs a decision in week 2.
+The fourth was decided on 2026-11-11, before any planted run. `compare` used to stop with "Applicability changed" (exit 2) when a case had a score in one run and none in the other. A truncated or unparsable reply had no `abstain_correct`, so a change that caused format errors failed the gate as an invalid comparison instead of as a regression, and a single format error blocked a harmless change the same way. Now such a reply scores `abstain_correct` 0, as it already scored `e2e_pass` 0, and the usual McNemar rule judges it. `false_abstain_rate`, `missed_abstain_rate`, and abstain precision and recall still leave it out. The committed baselines have no format errors, so none of their scores changed.
+
+Still open:
+
 - **Data PRs are not compared.** Every PR that adds or edits cases has to run `make record`, and the gate accepts it without a comparison. The reviewer is the only check on a data PR.
 - **Latency warns on noise.** Three runs of unchanged code on the Mac gave `latency_p95_s` from 5.4 to 9.1 s, a wider spread than its 2.0 s tolerance. It is warn-only, so it never blocks, but its warnings mean little at this size.
 
