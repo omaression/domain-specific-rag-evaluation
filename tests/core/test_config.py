@@ -3,7 +3,7 @@ from pathlib import Path
 import pytest
 from pydantic import ValidationError
 
-from deskrag.core.config import SystemConfig, config_hash, load_config
+from deskrag.core.config import PROMPTS_DIR, SystemConfig, config_hash, load_config
 
 REPO = Path(__file__).resolve().parents[2]
 
@@ -80,4 +80,6 @@ def test_repo_configs_load(name):
     "path", sorted((REPO / "configs" / "experiments").glob("*.yaml")), ids=lambda p: p.name
 )
 def test_experiment_configs_load(path):
-    assert load_config(path).name
+    cfg = load_config(path)
+    assert cfg.name == path.stem
+    assert (PROMPTS_DIR / f"{cfg.prompt_version}.md").is_file()

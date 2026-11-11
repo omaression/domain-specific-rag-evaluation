@@ -1,0 +1,5 @@
+# Planted regression: prompt v1 without its two abstain rules (rules 2 and 4). Evaluate on dev only.
+# The same prompt ran in week 1 as fork PR #11, which was closed unmerged.
+extends: ../baseline.yaml
+name: no-abstain
+prompt_version: v1-no-abstain

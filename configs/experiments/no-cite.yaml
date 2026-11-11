@@ -1,0 +1,5 @@
+# Planted regression: prompt v1 without the citation rule (the end of rule 3). The reply shape
+# still has a "citations" list. citation_valid and citation_hit are not gated. Evaluate on dev only.
+extends: ../baseline.yaml
+name: no-cite
+prompt_version: v1-no-cite

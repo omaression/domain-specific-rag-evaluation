@@ -1,0 +1,6 @@
+# Control: llm.seed 42 to 43. The gate should not block it. Evaluate on dev only.
+extends: ../baseline.yaml
+name: seed43
+
+llm:
+  seed: 43
