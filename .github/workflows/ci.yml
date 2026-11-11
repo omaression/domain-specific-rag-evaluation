@@ -43,19 +43,41 @@ jobs:
           set -e
           test "$status" -eq 1
 
+  # BM25 needs no model, so this job runs it again on the runner and compares that run with the
+  # committed recording, baselines/dev-retrieval. `make record` replaces that recording in the same
+  # pull request, so the job also checks it the way llm-gate checks baselines/dev: fresh, honestly
+  # scored, and not a gated regression against the base branch's recording.
   retrieval-gate:
     runs-on: ubuntu-latest
     env:
       DESKRAG_MACHINE: github-hosted
     steps:
       - uses: actions/checkout@v7
+        with:
+          fetch-depth: 2
       - uses: astral-sh/setup-uv@v10.2.0
       - run: uv sync --locked
-      - name: BM25 retrieval-only evaluation and comparison
+      - name: Run BM25 again and compare it with the recording
         run: uv run deskrag regress --config configs/ci-retrieval.yaml --baseline baselines/dev-retrieval --gates baselines/retrieval-gates.yaml --retrieval-only
       - name: Show the comparison
         if: always()
         run: cat runs/*/compare.md >> "$GITHUB_STEP_SUMMARY" 2>/dev/null || true
+      - name: Take the base branch's recording
+        shell: bash
+        run: |
+          # On a pull request HEAD is the merge commit, so HEAD^1 is the base branch.
+          mkdir -p "$RUNNER_TEMP/base"
+          git archive HEAD^1 baselines/dev-retrieval | tar -x -C "$RUNNER_TEMP/base" || echo "The base branch has no baselines/dev-retrieval."
+      - name: Check the recording and compare it with the base branch
+        shell: bash
+        run: |
+          set +e
+          uv run deskrag baseline check --baseline-dir baselines/dev-retrieval --base-dir "$RUNNER_TEMP/base/baselines/dev-retrieval" --config configs/ci-retrieval.yaml --gates baselines/retrieval-gates.yaml > "$RUNNER_TEMP/check.md" 2>&1
+          status=$?
+          set -e
+          cat "$RUNNER_TEMP/check.md"
+          cat "$RUNNER_TEMP/check.md" >> "$GITHUB_STEP_SUMMARY"
+          exit "$status"
 
   # No model runs here. The full dev run is recorded on the reference machine (`make record`)
   # and committed under baselines/dev. This job checks that recording: it must match this code
