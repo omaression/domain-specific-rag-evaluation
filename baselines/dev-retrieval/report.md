@@ -1,9 +1,9 @@
 # Evaluation report
 
-Run: `20261111-013135-ci-retrieval-d045262d`
+Run: `20261111-013719-ci-retrieval-09513b4c`
 Split: dev; cases: 26; reps: 1
 Dataset SHA256: `73ac090000605164da8263f578a34e16766d762a64de3b43d7f90da4affe9c21`
-Config SHA256: `d045262d3b07af2dd08a233e536ee4064e0a88e83e10d2d23e0d97e73dae52ad`
+Config SHA256: `09513b4cc81c0ef96456c65f865fad7ffddf8058c1e6ad43b3cbe1d3b6ff6c9d`
 Machine: reference
 
 ## Counts
