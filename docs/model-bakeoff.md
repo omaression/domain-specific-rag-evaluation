@@ -87,7 +87,7 @@ The script matches `must_include` facts word for word. Reading the answers chang
 
 These are suggestions; the case authors decide.
 
-- **ff-015 is answerable.** Relabel it `single_doc` with gold `acct007` and `must_include` `$152`.
+- **ff-015 is answerable.** Relabel it `single_doc` with gold `acct007` and `must_include` `$152`. Done on 2026-11-12 in fork PR #18.
 - **Some `must_include` facts are full phrases that correct answers word differently.** Shorter facts, with `|` alternatives, would score fairly:
 
 | Case | Current fact | What correct answers said | Suggested fact |

@@ -2,7 +2,7 @@
 
 Proposed by Omar on 2026-11-09. Not reviewed by the group yet.
 
-Updated on 2026-11-11 after week 1: CI no longer runs the model. The LLM gate checks a run recorded on the reference Mac ([why](#why-ci-does-not-run-the-model)). [Week 1 status](#week-1-status) has the first results. The [results tables](#results-tables) have the planted and control runs on the 60 cases, and since 2026-11-12 how often the gate blocks them on fewer cases.
+Updated on 2026-11-11 after week 1: CI no longer runs the model. The LLM gate checks a run recorded on the reference Mac ([why](#why-ci-does-not-run-the-model)). [Week 1 status](#week-1-status) has the first results. The [results tables](#results-tables) have the planted and control runs on the 60 cases, and since 2026-11-12 how often the gate blocks them on fewer cases. All of them were scored again on 2026-11-12, after ff-015 was relabeled.
 
 ## Why we are changing
 
@@ -100,7 +100,7 @@ Week 1 closed three of the four gaps listed here on 2026-11-09: `eval run --retr
 
 The fourth was decided on 2026-11-11, before any planted run. `compare` used to stop with "Applicability changed" (exit 2) when a case had a score in one run and none in the other. A truncated or unparsable reply had no `abstain_correct`, so a change that caused format errors failed the gate as an invalid comparison instead of as a regression, and a single format error blocked a harmless change the same way. Now such a reply scores `abstain_correct` 0, as it already scored `e2e_pass` 0, and the usual McNemar rule judges it. `false_abstain_rate`, `missed_abstain_rate`, and abstain precision and recall still leave it out. The committed baselines have no format errors, so none of their scores changed.
 
-The planted runs found another gap, and fork PR #16 closes it. The retrieval gate compared a fresh BM25 run with the PR's own `baselines/dev-retrieval`, which `make record` replaces in the same PR. Its config also pinned k to 5. So it could not block a retrieval change that was recorded, and on a real PR it would have passed both `k1` and `chunk50` ([detection](#1-detection)). Now the job also runs `deskrag baseline check` on the PR's recording against the base branch's copy, as the LLM gate does, and `configs/ci-retrieval.yaml` takes every setting from `configs/baseline.yaml`. Run locally, the job blocks a recorded `k1` (hit@5 b = 8, c = 0, p = 0.0078). A recorded `chunk50` still only warns (hit@5 b = 3, c = 1, p = 0.625).
+The planted runs found another gap, and fork PR #16 closes it. The retrieval gate compared a fresh BM25 run with the PR's own `baselines/dev-retrieval`, which `make record` replaces in the same PR. Its config also pinned k to 5. So it could not block a retrieval change that was recorded, and on a real PR it would have passed both `k1` and `chunk50` ([detection](#1-detection)). Now the job also runs `deskrag baseline check` on the PR's recording against the base branch's copy, as the LLM gate does, and `configs/ci-retrieval.yaml` takes every setting from `configs/baseline.yaml`. Run locally, the job blocks a recorded `k1` (hit@5 b = 8, c = 0, p = 0.0078; with ff-015 relabeled, b = 9 and p = 0.0039). A recorded `chunk50` still only warns (hit@5 b = 3, c = 1, p = 0.625).
 
 Still open:
 
@@ -153,40 +153,42 @@ No new LLM calls. A script takes the full Mac runs for the baseline and each pla
 
 ### Results tables
 
-All runs were on 2026-11-11, on the reference Mac (Apple M4, 16 GB, Ollama 0.40.3), with the 60 frozen dev cases (33 answerable, 27 not), one run at a time. The gate settings were not changed.
+All runs were on 2026-11-11, on the reference Mac (Apple M4, 16 GB, Ollama 0.40.3), with the 60 frozen dev cases, one run at a time. The gate settings were not changed. With ff-015 relabeled, 34 of the cases are answerable and 26 are not.
 
-Each LLM gate verdict comes from `make regress CONFIG=...` against the recording `20261111-174152-baseline-d045262d` (e2e_pass 46 of 60, hit@5 30 of 33, abstain_correct 52 of 60). That is the comparison the LLM gate makes when a PR commits a recording of the change. Minutes are Mac wall time for one run of the 60 cases, about what `make record` takes. CI adds about 20 s. A cell like 10 / 2 / 0.039 means b = 10 cases went from pass to fail, c = 2 went from fail to pass, and the exact McNemar p is 0.039. [planted-runs.md](planted-runs.md) has every metric and every flipped case for each run.
+Each LLM gate verdict comes from `make regress CONFIG=...` against the recording `20261111-174152-baseline-d045262d` (re-scored: e2e_pass 47 of 60, hit@5 31 of 34, abstain_correct 53 of 60). That is the comparison the LLM gate makes when a PR commits a recording of the change. Minutes are Mac wall time for one run of the 60 cases, about what `make record` takes. CI adds about 20 s. A cell like 11 / 1 / 0.006 means b = 11 cases went from pass to fail, c = 1 went from fail to pass, and the exact McNemar p is 0.006. [planted-runs.md](planted-runs.md) has every metric and every flipped case for each run.
+
+**Re-scored on 2026-11-12.** ff-015 asks "How much does a semester student parking permit cost?" It was labeled `missing_info`, but `acct007` lists the permit at $152.00, and the bot answered "$152.00" and cited `acct007`. So the recording's right answer counted as a missed abstention, and a run that refused the question got credit for it. [model-bakeoff.md](model-bakeoff.md) noted this in October, and I found it again on 2026-11-11 while writing the new cases, before the planted runs. Fork PR #18 relabels it `single_doc` with gold `acct007` and records the baselines again. The model only gets the question, never the labels, so the recorded answers stay valid. Instead of running every config again, I scored every run's recorded answers again with the new label and compared them again ([planted-runs.md](planted-runs.md) says how). Only ff-015's scores changed. No verdict on all 60 changed, but `k1` is now blocked by all three gated metrics instead of two, and `k3` now warns on hit@5. Every number below is re-scored.
 
 #### 1. Detection
 
 | Planted | Retrieval gate | LLM gate | e2e_pass | hit@5 | abstain_correct | Minutes |
 |---|---|---|---|---|---|---:|
-| `k1` | Blocked: hit@5 8 / 0 / 0.008 | Blocked by e2e_pass and hit@5 | 10 / 2 / 0.039 | 8 / 0 / 0.008 | 9 / 2 / 0.065 | 1.9 |
-| `k3` | Passed: hit@5 1 / 0 / 1 | Passed | 2 / 2 / 1 | 1 / 0 / 1 | 1 / 2 / 1 | 2.8 |
-| `closed-book` | Cannot run: `--retrieval-only` needs `system: rag` | Blocked by all three | 34 / 1 / < 0.001 | 30 / 0 / < 0.001 | 17 / 5 / 0.017 | 1.8 |
+| `k1` | Blocked: hit@5 9 / 0 / 0.004 | Blocked by all three | 11 / 1 / 0.006 | 9 / 0 / 0.004 | 10 / 1 / 0.012 | 1.9 |
+| `k3` | Passed with a warning: hit@5 2 / 0 / 0.5 | Passed with a warning | 3 / 1 / 0.625 | 2 / 0 / 0.5 | 2 / 1 / 1 | 2.8 |
+| `closed-book` | Cannot run: `--retrieval-only` needs `system: rag` | Blocked by all three | 35 / 1 / < 0.001 | 31 / 0 / < 0.001 | 17 / 5 / 0.017 | 1.8 |
 | `no-abstain` | No retrieval change | Passed with a warning | 7 / 2 / 0.18 | 0 / 0 / 1 | 7 / 3 / 0.34 | 11.3 |
 | `no-cite` | No retrieval change | Passed | 0 / 0 / 1 | 0 / 0 / 1 | 0 / 1 / 1 | 7.9 |
 | `chunk50` | Passed with a warning: hit@5 3 / 1 / 0.625, hit@1 4 / 1 / 0.375 | Passed with a warning | 5 / 1 / 0.22 | 3 / 1 / 0.625 | 5 / 0 / 0.0625 | 2.8 |
 | `ctx1024` | No retrieval change | Run failed with exit 2, nothing compared | n/a | n/a | n/a | 3.2 |
-| `maxtok32` | No retrieval change | Blocked by e2e_pass and abstain_correct | 22 / 0 / < 0.001 | 0 / 0 / 1 | 28 / 0 / < 0.001 | 6.5 |
-| `gate-high` | No retrieval change | Blocked by e2e_pass and abstain_correct | 11 / 2 / 0.022 | 0 / 0 / 1 | 13 / 2 / 0.007 | 1.1 |
+| `maxtok32` | No retrieval change | Blocked by e2e_pass and abstain_correct | 23 / 0 / < 0.001 | 0 / 0 / 1 | 29 / 0 / < 0.001 | 6.5 |
+| `gate-high` | No retrieval change | Blocked by e2e_pass and abstain_correct | 12 / 1 / 0.003 | 0 / 0 / 1 | 14 / 1 / < 0.001 | 1.1 |
 
 Cases lost and gained on e2e_pass:
 
-- `k1`: lost ff-007, om-001, om-003, om-004, om-007, om-009, om-010, om-015, om-022, om-028; gained ff-015, kp-005.
-- `k3`: lost om-001, om-010; gained ff-015, kp-005.
-- `closed-book`: lost 34 of the 46 passing cases; gained om-012.
+- `k1`: lost ff-007, ff-015, om-001, om-003, om-004, om-007, om-009, om-010, om-015, om-022, om-028; gained kp-005.
+- `k3`: lost ff-015, om-001, om-010; gained kp-005.
+- `closed-book`: lost 35 of the 47 passing cases; gained om-012.
 - `no-abstain`: lost ff-016, ff-018, ff-019, om-015, om-030, om-033, om-034; gained kp-005, om-008.
 - `chunk50`: lost ff-007, om-001, om-007, om-009, om-010; gained ff-008.
-- `maxtok32`: lost 22, gained none.
-- `gate-high`: lost ff-002, ff-003, ff-005, ff-006, ff-011, ff-012, kp-004, om-009, om-010, om-026, om-028; gained ff-015, om-012.
+- `maxtok32`: lost 23, gained none.
+- `gate-high`: lost ff-002, ff-003, ff-005, ff-006, ff-011, ff-012, ff-015, kp-004, om-009, om-010, om-026, om-028; gained om-012.
 
 What the table shows:
 
-- **Blocked by a verdict: 4 of 9.** The LLM gate blocked `k1`, `closed-book`, `maxtok32`, and `gate-high`. Each one broke 10 or more passing cases. `maxtok32` cut off 30 of the 60 replies. It counts as a regression only because of the 2026-11-11 change to `abstain_correct`. Before it, `compare` would have stopped with exit 2.
+- **Blocked by a verdict: 4 of 9.** The LLM gate blocked `k1`, `closed-book`, `maxtok32`, and `gate-high`. Each one broke 11 or more passing cases. `maxtok32` cut off 30 of the 60 replies. It counts as a regression only because of the 2026-11-11 change to `abstain_correct`. Before it, `compare` would have stopped with exit 2.
 - **Blocked without a verdict: `ctx1024`.** Ollama 0.40.3 does not cut a long prompt. It refuses it with HTTP 400 ("exceeds the available context size"). 59 of the 60 prompts were 1,282 to 2,230 tokens; only `ff-010` (978 tokens) fit. The harness counts each refusal as an infra error, so the run stops with exit 2 and nothing is compared. `make record` refuses a run with infra errors, so a PR with this change would keep the old recording, and the LLM gate would fail it as out of date.
-- **Got through: 2 real regressions.** Without its abstain rules, the bot answered 9 unanswerable questions instead of 2. It lost 7 passing cases and gained 2, so p = 0.18. In week 1, on 26 cases, the same change gave b = 3, c = 1. `chunk50` lost 5 and gained 1 on e2e_pass. On abstain_correct it lost 5 with none back, p = 0.0625, one flip short of the 6 the gate needs. Both only warned.
-- **Passed, with a small effect or none: `k3` and `no-cite`.** `k3` lost one source page (`om-010`), and e2e_pass lost two cases and gained two. `no-cite` changed nothing the gate measures. All 30 answers still cited a document, and citation_valid went from 0.966 to 1.0, because the reply format still has a "citations" field. A change that drops citations would have to be in the code, not the prompt.
+- **Got through: 2 real regressions.** Without its abstain rules, the bot answered 8 unanswerable questions instead of 1. It lost 7 passing cases and gained 2, so p = 0.18. In week 1, on 26 cases, the same change gave b = 3, c = 1. `chunk50` lost 5 and gained 1 on e2e_pass. On abstain_correct it lost 5 with none back, p = 0.0625, one flip short of the 6 the gate needs. Both only warned.
+- **Passed, with a small effect or none: `k3` and `no-cite`.** `k3` lost two source pages (`om-010` and `ff-015`), so hit@5 warned (b = 2, c = 0, p = 0.5), and e2e_pass lost three cases and gained one. `no-cite` changed nothing the gate measures. All 30 answers still cited a document, and citation_valid went from 0.966 to 1.0, because the reply format still has a "citations" field. A change that drops citations would have to be in the code, not the prompt.
 - **The retrieval column was not what CI showed until fork PR #16.** These rows ran each planted config retrieval-only against main's `baselines/dev-retrieval`, as planned above. CI's retrieval gate did something else. It ran `configs/ci-retrieval.yaml`, which pinned k to 5, and compared with the PR's own `baselines/dev-retrieval`, which `make record` replaces in the same PR. So on a real PR it would have passed both `k1` and `chunk50`. PR #16 fixed this ([Gaps](#gaps-in-the-current-code) says how). After the fix, each planted change was put in `configs/baseline.yaml`, recorded retrieval-only, and run through the job's steps. `k1`, `k3`, and `chunk50` got the verdicts and the b, c, and p in this column. The five rows marked "No retrieval change" had no flips. `closed-book` still cannot be recorded retrieval-only.
 
 #### 2. False alarms
@@ -215,24 +217,24 @@ An answer differs if its text, abstain decision, citations, or status differ.
 
 | Run | Lowest p on all 60 | 10 cases | 20 cases | 40 cases | All 60 |
 |---|---|---:|---:|---:|---:|
-| `closed-book` | hit@5 30 / 0 / < 0.001 | 63% | >99% | 100% | 100% |
-| `maxtok32` | abstain_correct 28 / 0 / < 0.001 | 28% | 98% | 100% | 100% |
-| `gate-high` | abstain_correct 13 / 2 / 0.00739 | <1% | 11% | 58% | 100% |
-| `k1` | hit@5 8 / 0 / 0.00781 | <1% | 5% | 56% | 100% |
+| `closed-book` | hit@5 31 / 0 / < 0.001 | 68% | >99% | 100% | 100% |
+| `maxtok32` | abstain_correct 29 / 0 / < 0.001 | 32% | 99% | 100% | 100% |
+| `gate-high` | abstain_correct 14 / 1 / < 0.001 | 1% | 21% | 91% | 100% |
+| `k1` | hit@5 9 / 0 / 0.00391 | <1% | 11% | 83% | 100% |
 | `no-abstain` | e2e_pass 7 / 2 / 0.18 | <1% | <1% | 3% | 0% |
 | `chunk50` | abstain_correct 5 / 0 / 0.0625 | 0% | 0% | 0% | 0% |
-| `k3` | hit@5 1 / 0 / 1 | 0% | 0% | 0% | 0% |
+| `k3` | hit@5 2 / 0 / 0.5 | 0% | 0% | 0% | 0% |
 | `no-cite` | none | 0% | 0% | 0% | 0% |
 | Each control: `rerun-1` to `rerun-5`, `reworded`, `seed43` | none | 0% | 0% | 0% | 0% |
 
 What the table shows:
 
-- **The answer to question 3.** With the frozen gate settings, a change that breaks a third or more of the cases is blocked on 20 cases almost every time. One that breaks about a sixth of them is blocked on a little over half of the 40-case subsets. One that breaks 5 to 7 is not blocked on all 60, and rarely on a subset.
-- **Big breaks are caught on small sets.** `closed-book` lost 34 of the 46 passing cases. It was blocked on 63% of the 10-case subsets and on more than 99% of the 20-case ones. `maxtok32` cut off 30 of the 60 replies and was blocked on 28% at 10 and 98% at 20.
-- **Breaks of 10 or 11 cases are caught about half the time on 40.** `k1` and `gate-high` lost 10 and 11 passing cases end to end. They were blocked on under 1% of the 10-case subsets, on 5% and 11% of the 20-case ones, and on 56% and 58% of the 40-case ones.
+- **The answer to question 3.** With the frozen gate settings, a change that breaks a third or more of the cases is blocked on 20 cases almost every time. One that breaks about a fifth of them is blocked on most of the 40-case subsets but few of the 20-case ones. One that breaks 5 to 7 is not blocked on all 60, and rarely on a subset.
+- **Big breaks are caught on small sets.** `closed-book` lost 35 of the 47 passing cases. It was blocked on 68% of the 10-case subsets and on more than 99% of the 20-case ones. `maxtok32` cut off 30 of the 60 replies and was blocked on 32% at 10 and 99% at 20.
+- **Breaks of 11 or 12 cases are caught most of the time on 40.** `k1` and `gate-high` lost 11 and 12 passing cases end to end and gained one each. They were blocked on 1% or less of the 10-case subsets, on 11% and 21% of the 20-case ones, and on 83% and 91% of the 40-case ones. Before the relabel, ff-015 was a gain for both instead of a loss, and the 40-case shares were 56% and 58%. Near the threshold, one case moves the share a lot.
 - **The two that got through stay through.** To reach p < 0.05, a metric needs at least 6 cases lost with none gained, or 8 with 1 gained, or 10 with 2, and more as the gains grow. `chunk50` never lost more than 5 on a gated metric, so no subset can block it. `no-abstain` lost 7 and gained 2 on e2e_pass. It was blocked on 3% of the 40-case subsets, and every one of those left out kp-005 and om-008, the two cases it gained. The full set has both.
 - **No false alarms at any size.** The controls flipped no case on a gated metric, so no subset of them can be blocked. That only shows a smaller set cannot turn identical verdicts into a false alarm; the false-alarm table is still the evidence. `k3` and `no-cite`, the planted changes with a small effect or none, were never blocked either.
-- **The retrieval gate adds nothing here.** Run the same way against `baselines/dev-retrieval`, it blocked only `k1`: on 1% of the 20-case subsets and 46% of the 40-case ones. Its hit@5 and hit@1 scores match the LLM runs case for case, and hit@1 never lost more than 4 cases, so it blocks only subsets that the LLM gate's hit@5 already blocks.
+- **The retrieval gate adds nothing here.** Run the same way against the retrieval recording, it blocked only `k1`: on 3% of the 20-case subsets and 66% of the 40-case ones. Its hit@5 and hit@1 scores match the LLM runs case for case, and hit@1 never lost more than 4 cases, so it blocks only subsets that the LLM gate's hit@5 already blocks.
 - **Left out and how precise.** `ctx1024` has no row: it stopped on infra errors, so there is no run to compare. `model-alt`, the one real change, has not run yet. Rerunning with seed 1 moved no cell by more than 0.4 points. All 60 is one verdict, so it can only be 0% or 100%.
 
 ## Test set
