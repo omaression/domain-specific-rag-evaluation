@@ -65,7 +65,7 @@ def test_summary_matches_all_sample_outcomes(sample_data):
 
     assert summary.metrics["e2e_pass"] == pytest.approx(4 / 10)
     assert summary.metrics["mrr"] == pytest.approx(0.75)
-    assert summary.metrics["abstain_correct"] == pytest.approx(5 / 9)
+    assert summary.metrics["abstain_correct"] == pytest.approx(5 / 10)  # s06's parse error is wrong
     assert summary.metrics["format_error_rate"] == pytest.approx(0.1)
 
     assert summary.counts.cases == 10

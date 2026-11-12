@@ -1,0 +1,7 @@
+# Planted regression: 50-word chunks with a 10-word overlap instead of 300 and 50. Evaluate on dev only.
+extends: ../baseline.yaml
+name: chunk50
+
+chunking:
+  size_words: 50
+  overlap_words: 10

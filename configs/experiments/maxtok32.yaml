@@ -1,0 +1,7 @@
+# Planted regression: at most 32 reply tokens instead of 512. Replies in baselines/dev average
+# 39 tokens. Evaluate on dev only.
+extends: ../baseline.yaml
+name: maxtok32
+
+llm:
+  max_tokens: 32
