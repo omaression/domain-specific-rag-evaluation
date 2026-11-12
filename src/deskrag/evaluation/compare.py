@@ -103,8 +103,8 @@ def cell(value) -> str:
     return str(value).replace("|", "\\|").replace("\n", " ").replace("\r", " ")
 
 
-def compare_runs(baseline: Path, candidate: Path, gates_path: Path) -> tuple[str, bool]:
-    base, cand = load_run(baseline), load_run(candidate)
+def require_paired(base: RecordedRun, cand: RecordedRun) -> None:
+    """Raise unless both runs are complete and can be compared case by case."""
     require_complete(base)
     require_complete(cand)
     if (base.meta.dataset.sha256, base.meta.dataset.split) != (
@@ -120,7 +120,68 @@ def compare_runs(baseline: Path, candidate: Path, gates_path: Path) -> tuple[str
         cand.meta.corpus.sha256 if cand.meta.corpus else None
     ):
         raise ValueError("Corpus fingerprint differs; regenerate a comparable baseline")
-    gates = load_gates(gates_path)
+
+
+def passes(metric: str, score: float) -> bool:
+    """Whether a binary score is the good outcome: 1, or 0 for a lower-is-better rate."""
+    return score == (1 if METRIC_DIRECTION[metric] == "higher" else 0)
+
+
+Pair = tuple[tuple[str, int], float, float]
+
+
+def paired_scores(metric: str, base: RecordedRun, cand: RecordedRun) -> list[Pair]:
+    """(case, baseline score, candidate score) for each case a binary metric applies to."""
+    pairs = []
+    for key in sorted(base.rows):
+        old = base.rows[key].scores.get(metric)
+        new = cand.rows[key].scores.get(metric)
+        if (old is None) != (new is None):
+            raise ValueError(f"Applicability changed for {metric} on {key}")
+        if old is None:
+            continue
+        if old not in (0, 1) or new not in (0, 1):
+            raise ValueError(f"Nonbinary score for {metric} on {key}")
+        pairs.append((key, old, new))
+    return pairs
+
+
+def flip_counts(metric: str, pairs: list[Pair]) -> tuple[int, int]:
+    """McNemar's discordant counts: b cases went from pass to fail, c from fail to pass."""
+    b = c = 0
+    for _, old, new in pairs:
+        old_ok, new_ok = passes(metric, old), passes(metric, new)
+        b += int(old_ok and not new_ok)
+        c += int(new_ok and not old_ok)
+    return b, c
+
+
+def metric_verdict(
+    metric: str, baseline: float, candidate: float, tolerance: float, p: float | None, alpha: float
+) -> str:
+    """REGRESSION when the metric is worse by more than its tolerance and p < alpha. POSSIBLE
+    when it is worse but p is not below alpha, or there is no paired test. Else IMPROVED or OK."""
+    delta = candidate - baseline
+    benefit = delta if METRIC_DIRECTION[metric] == "higher" else -delta
+    worse = benefit < -tolerance and not math.isclose(benefit, -tolerance, abs_tol=1e-12)
+    if worse:
+        return "REGRESSION" if p is not None and p < alpha else "POSSIBLE"
+    return "IMPROVED" if benefit > 0 else "OK"
+
+
+def compare_runs(baseline: Path, candidate: Path, gates_path: Path) -> tuple[str, bool]:
+    """Compare two recorded runs, write candidate/compare.md, and say whether a gated
+    regression blocks the candidate."""
+    base, cand = load_run(baseline), load_run(candidate)
+    require_paired(base, cand)
+    text, blocked = compare_loaded(base, cand, load_gates(gates_path))
+    (candidate / "compare.md").write_text(text, encoding="utf-8")
+    return text, blocked
+
+
+def compare_loaded(base: RecordedRun, cand: RecordedRun, gates: dict) -> tuple[str, bool]:
+    """The comparison report for two runs that `require_paired` accepts, and whether a gated
+    regression blocks the candidate. Writes nothing."""
     warnings = []
     if base.meta.env.machine != cand.meta.env.machine:
         warnings.append("Machine differs. Official comparisons should use the reference machine.")
@@ -150,50 +211,31 @@ def compare_runs(baseline: Path, candidate: Path, gates_path: Path) -> tuple[str
                 raise ValueError(f"Gated metric missing/not applicable: {metric}")
             lines.append(f"| {metric} | — | — | — | — | — | — | — | NOT APPLICABLE | no |")
             continue
-        direction = METRIC_DIRECTION[metric]
         tolerance = rule.get("tolerance", 0)
         delta = cv - bv
-        benefit = delta if direction == "higher" else -delta
         b = c = 0
         p = None
         if metric in BINARY_METRICS:
-            pairs = []
-            for key in sorted(base.rows):
-                old = base.rows[key].scores.get(metric)
-                new = cand.rows[key].scores.get(metric)
-                if (old is None) != (new is None):
-                    raise ValueError(f"Applicability changed for {metric} on {key}")
-                if old is None:
-                    continue
-                if old not in (0, 1) or new not in (0, 1):
-                    raise ValueError(f"Nonbinary score for {metric} on {key}")
-                pairs.append((old, new))
-                old_ok = old == (1 if direction == "higher" else 0)
-                new_ok = new == (1 if direction == "higher" else 0)
-                if old_ok != new_ok:
-                    b += int(old_ok)
-                    c += int(new_ok)
-                    flips.append(
-                        (
-                            metric,
-                            key[0],
-                            "pass→fail" if old_ok else "fail→pass",
-                            ", ".join(cand.rows[key].failure_tags) or "none",
-                        )
-                    )
+            pairs = paired_scores(metric, base, cand)
             if not pairs:
                 raise ValueError(f"No paired scores for {metric}")
             if not math.isclose(
-                sum(a for a, _ in pairs) / len(pairs), bv, abs_tol=1e-8
-            ) or not math.isclose(sum(a for _, a in pairs) / len(pairs), cv, abs_tol=1e-8):
+                sum(old for _, old, _ in pairs) / len(pairs), bv, abs_tol=1e-8
+            ) or not math.isclose(sum(new for _, _, new in pairs) / len(pairs), cv, abs_tol=1e-8):
                 raise ValueError(f"Aggregate {metric} disagrees with paired scores")
+            b, c = flip_counts(metric, pairs)
+            flips += [
+                (
+                    metric,
+                    key[0],
+                    "pass→fail" if passes(metric, old) else "fail→pass",
+                    ", ".join(cand.rows[key].failure_tags) or "none",
+                )
+                for key, old, new in pairs
+                if passes(metric, old) != passes(metric, new)
+            ]
             p = mcnemar_exact(b, c)
-        worse = benefit < -tolerance and not math.isclose(benefit, -tolerance, abs_tol=1e-12)
-        verdict = (
-            ("REGRESSION" if p is not None and p < gates.get("alpha", 0.05) else "POSSIBLE")
-            if worse
-            else ("IMPROVED" if benefit > 0 else "OK")
-        )
+        verdict = metric_verdict(metric, bv, cv, tolerance, p, gates.get("alpha", 0.05))
         gated = rule.get("gate", False)
         blocked |= gated and verdict == "REGRESSION"
         ptext = f"{p:.6g}" if p is not None else "n/a"
@@ -221,6 +263,4 @@ def compare_runs(baseline: Path, candidate: Path, gates_path: Path) -> tuple[str
         "Tests are per metric without multiplicity correction. Small datasets have limited power.",
     ]
     lines += ["", "## Environment warnings", "", *warnings] if warnings else []
-    text = "\n".join(lines) + "\n"
-    (candidate / "compare.md").write_text(text, encoding="utf-8")
-    return text, blocked
+    return "\n".join(lines) + "\n", blocked
