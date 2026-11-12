@@ -13,7 +13,7 @@ ff-011,primary,true,paraphrase,kept,419.530.2600 is in safety002.
 ff-012,primary,true,paraphrase,kept,$50.00 late registration fee is in reg005.
 ff-013,primary,false,out_of_domain,kept,Banana bread is not a university help topic. No corpus document answers it.
 ff-014,primary,false,out_of_domain,kept,The 1998 World Cup is not in the corpus.
-ff-015,primary,false,missing_info,kept,No semester parking-permit price. Pages name ParkUToledo and say a permit is required.
+ff-015,primary,true,single_doc,case_type_changed,Was missing_info. acct007 lists Parking Permit (Per Semester) at $152.00 under Optional Fees. Relabeled on 2026-11-12 as single_doc with gold acct007 and must_include $152. Now answerable.
 ff-016,primary,false,missing_info,kept,reg003 says no date list was found. acct006 has Fall 2026 refund and nonpayment dates and not the last day to drop a full-term class.
 ff-017,primary,false,missing_info,kept,"No color-page price. it008 now names the printing catalog and still states no price."
 ff-018,primary,false,false_premise,kept,No Mars campus is described.
