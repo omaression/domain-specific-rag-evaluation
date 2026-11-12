@@ -24,7 +24,7 @@ Three questions replace the three in the midterm report:
 2. **False alarms.** How often does CI block a change that should not matter?
 3. **Sensitivity.** How many cases does the gate need before it can catch a regression of a given size?
 
-Question 3 matters because the gate is weak on a small set. `compare` blocks only when a gated metric is worse than its tolerance and the exact two-sided McNemar test gives p < 0.05. That needs at least 6 pass-to-fail flips with none the other way (p = 0.03125). Five flips give p = 0.0625. About 20 of the 26 dev cases pass today, so a change has to break 6 of those 20 before the gate can block it. Week 1 hit this twice: two real regressions broke 3 and 4 cases, and both got through.
+Question 3 matters because the gate is weak on a small set. `compare` blocks only when a gated metric is worse than its tolerance and the exact two-sided McNemar test gives p < 0.05. That needs at least 6 pass-to-fail flips with none the other way (p = 0.03125). Five flips give p = 0.0625. When I wrote this, about 20 of the 26 dev cases passed, so a change had to break 6 of those 20 before the gate could block it. Week 1 hit this twice: two real regressions broke 3 and 4 cases, and both got through. The set now has 60 cases, and 47 of them pass in the recording.
 
 ## What happens to the existing work
 
@@ -39,12 +39,12 @@ Question 3 matters because the gate is weak on a small set. `compare` blocks onl
 
 ## CI layers
 
-| Check | When it runs | What it compares | State on the fork's main, 2026-11-11 |
+| Check | When it runs | What it compares | State on the fork's main, 2026-11-12 |
 |---|---|---|---|
 | Lint, tests, fixture contract | Every PR | A planted fixture must fail | Required, passing |
 | Retrieval gate | Every PR, no LLM | A fresh BM25 run on all dev cases against `baselines/dev-retrieval`, and that recording against the base branch's copy | Required, passing |
 | LLM gate | Every PR, no LLM, about 10 s | The committed `baselines/dev` against the base branch's copy | Required, passing |
-| Recording | The reference Mac, `make record`, about 3 minutes | Runs all dev cases and replaces `baselines/dev` and `baselines/dev-retrieval` | Works |
+| Recording | The reference Mac, `make record`, about 6 minutes for the 60 cases | Runs all dev cases and replaces `baselines/dev` and `baselines/dev-retrieval` | Works |
 
 Branch protection on the fork's main requires all four CI jobs (`test`, `regression-contract`, `retrieval-gate`, `llm-gate`), for admins too. `make regress` still runs the dev split and compares it with `baselines/dev` without changing anything, so an author can see the verdict before recording.
 
@@ -92,7 +92,7 @@ Seconds per case is the wall time of the whole eval step divided by 10, so it in
 - **Answers.** Two fresh runners do not always give the same answer. The two parallel `llama3.2:3b` runs matched word for word, but the recording's text differed from them on 7 of 23 cases, and its verdict differed on one (`ff-009`). The two `qwen3:4b` runs gave the same verdict on all 23 cases and the same text on 21. Both also gave the same verdicts as the Mac on all 23.
 - **Abstention.** `llama3.2:3b` refused only 5 of the 11 unanswerable questions in the subset. A change that stopped it from refusing could break at most those 5 cases, one short of the 6 the gate needs to block.
 
-So a model check on hosted runners would cost 9 to 30 minutes per pull request, could run past a time limit on a slow runner, and would add verdict flips that have nothing to do with the change. Replay avoids all of this. The model runs only on the Mac, where three runs of unchanged code gave the same verdict on all 26 cases, and CI checks the recording in about 10 seconds.
+So a model check on hosted runners would cost 9 to 30 minutes per pull request, could run past a time limit on a slow runner, and would add verdict flips that have nothing to do with the change. Replay avoids all of this. The model runs only on the Mac, where three runs of unchanged code gave the same verdict on all 26 cases, and CI checks the recording in about 10 seconds. Five later runs on the 60 cases matched the recording word for word ([false alarms](#2-false-alarms)).
 
 ### Gaps in the current code
 
@@ -105,7 +105,7 @@ The planted runs found another gap, and fork PR #16 closes it. The retrieval gat
 Still open:
 
 - **Data PRs are not compared.** Every PR that adds or edits cases has to run `make record`, and the gate accepts it without a comparison. The reviewer is the only check on a data PR.
-- **Latency warns on noise.** Three runs of unchanged code on 26 cases gave `latency_p95_s` from 5.4 to 9.1 s. Five runs on the 60 cases gave 5.2 to 10.4 s against 7.8 s in the recording, and two of the five warned at its 2.0 s tolerance. It is warn-only, so it never blocks, but its warnings mean little at this size.
+- **Latency warns on noise.** Three runs of unchanged code on 26 cases gave `latency_p95_s` from 5.4 to 9.1 s. Five runs on the 60 cases gave 5.2 to 10.4 s against 7.8 s in the 2026-11-11 recording, and two of the five warned at its 2.0 s tolerance. The recording that replaced it on 2026-11-12 measured 8.8 s. It is warn-only, so it never blocks, but its warnings mean little at this size.
 
 ## The experiment
 
@@ -133,7 +133,7 @@ These must not be blocked.
 
 | Name | Change |
 |---|---|
-| `rerun-1` to `rerun-5` | The baseline config, recorded again on the Mac. Three runs exist so far and agree on all 26 cases |
+| `rerun-1` to `rerun-5` | The baseline config, run again on the Mac, five times |
 | `reworded` | Prompt v1 reworded with the same meaning |
 | `seed43` | `llm.seed` 42 to 43 |
 
@@ -145,7 +145,7 @@ These must not be blocked.
 
 For every run: the verdict of each check, the metric that caught it, the flip counts b and c, p, the flipped cases, and minutes to verdict (recording plus CI).
 
-Every config runs on the Mac with `make regress CONFIG=...`, which applies the same comparison as the LLM gate, so each row is the verdict CI would give. Configs that change retrieval also run retrieval-only against `baselines/dev-retrieval`, as the retrieval gate does. Two real PRs, one bad and one harmless, are the live demo. At 26 cases the bad one has to break at least 6 cases, as closed-book does.
+Every config runs on the Mac with `make regress CONFIG=...`, which applies the same comparison as the LLM gate, so each row is the verdict CI would give. Configs that change retrieval also run retrieval-only against `baselines/dev-retrieval`, as the retrieval gate does. Two real PRs, one bad and one harmless, are the live demo. The bad one has to be blocked on the 60 cases, and `make record` has to be able to record it. `k1`, `maxtok32`, and `gate-high` qualify. `closed-book` is blocked but cannot be recorded: `make record` also makes the retrieval-only recording, which needs `system: rag`, so it stops and replaces nothing.
 
 ### Question 3
 
@@ -239,8 +239,8 @@ What the table shows:
 
 ## Test set
 
-- **Today:** 26 dev cases (14 answerable, 12 not) in two files, `faeghe.jsonl` (21) and `koshish.jsonl` (5). No test split.
-- **Target:** 60 dev cases. I add 34 in `data/testset/omar.jsonl` and check each one against its source page.
+- **Now:** 60 dev cases, frozen since 2026-11-11: 34 answerable and 26 not, in `faeghe.jsonl` (21), `koshish.jsonl` (5), and `omar.jsonl` (34). No test split.
+- **How it got there:** in week 1 the set had 26 cases (14 answerable, 12 not). I added om-001 to om-034 in fork PRs #13 and #14. ff-015 was relabeled from unanswerable to answerable on 2026-11-12 ([results](#results-tables)).
 - **Second label:** the midterm report promised a blind second label on about 20% of cases. That needs one teammate.
 
 ## Where the work happens
@@ -266,10 +266,10 @@ Commits are grouped by workstream area so each owner can review their part:
 1. Trial run on the GitHub runner. Done; it led to replay.
 2. Finish `eval run --retrieval-only` and add the case-ID list option. Done.
 3. Record the baselines, make the retrieval gate blocking, add the LLM gate job. Done, as replay.
-4. Write the 34 new cases.
+4. Write the 34 new cases. Done on 2026-11-11 (fork PRs #13 and #14).
 5. Planted configs and prompts, and the control runs, all on the Mac. Done on 2026-11-11 ([results](#results-tables)).
 6. The resampling script. Done on 2026-11-12 ([results](#3-sensitivity)).
-7. Report, repo docs, deck.
+7. Report, repo docs, deck. The repo docs were brought up to date on 2026-11-12.
 
 | Week | Dates | Done when |
 |---|---|---|
@@ -277,15 +277,13 @@ Commits are grouped by workstream area so each owner can review their part:
 | 2 | Nov 16 to 22 | Steps 4 to 6 finished; the last 15 cases written and the set frozen at 60; the three results tables exist |
 | 3 | Nov 23 to 29 | Step 7 finished; demo rehearsed |
 
-The final is due two to four weeks after Nov 9. If it is two weeks, cut in this order:
+The goals for weeks 1 and 2 were met by 2026-11-12.
 
-1. The model swap, dense, and hybrid.
-2. Cases stop at 45.
-3. Resampling at one subset size instead of four.
+The final is due two to four weeks after Nov 9. If it is two weeks, the model swap, dense, and hybrid are cut. The other two planned cuts, stopping the cases at 45 and resampling at one subset size instead of four, are no longer needed: the cases reached 60, and the resampling ran at all four sizes.
 
 ## Week 1 status
 
-As of 2026-11-11. Steps 1 to 3 are finished and the LLM gate passes on the fork's main (fork PRs #1 to #10). The 19 new cases are not started.
+As of 2026-11-11, before the new cases were written. This section is kept as the record of week 1; [Order of work](#order-of-work) and the [results tables](#results-tables) have the current state. Steps 1 to 3 are finished and the LLM gate passes on the fork's main (fork PRs #1 to #10). The 19 new cases are not started.
 
 | Baseline | Numbers |
 |---|---|
@@ -313,7 +311,7 @@ The mechanics work: a stale recording fails, branch protection blocks the merge,
 ## Report and docs
 
 - **Report:** new title, abstract, and the three questions. Sections IV-A to IV-C shrink into "the feature under test". Section IV-D grows into the main method. A new results section holds the three tables, plus the runner measurements that explain why CI replays a recording. Related work moves toward regression testing and behavioral testing of language models. The WS3 name placeholder in Section IV-F gets fixed.
-- **Repo docs:** the CI section of [design.md](design.md) and the owners and milestones in [workplan.md](workplan.md) are updated to match. [baselines/README.md](../baselines/README.md) already describes replay.
+- **Repo docs:** done on 2026-11-12. The Regression detection section of [design.md](design.md) describes replay, and [workplan.md](workplan.md) says at the top that it is the October plan and points here. Its owners table is left for the group to fill in. [baselines/README.md](../baselines/README.md) already described replay.
 - **Deck:** same layout, with the story changed to plant, detect, false alarms.
 
 Working title: "An Evaluation Harness with CI Regression Testing for a University Help-Desk LLM Feature".

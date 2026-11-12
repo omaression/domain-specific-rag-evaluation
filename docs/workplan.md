@@ -1,6 +1,8 @@
 # Workplan
 
-Due ≈ **Thu Oct 29** (shift the dates if that changes). Design: [design.md](design.md). Git rules: [CONTRIBUTING.md](../CONTRIBUTING.md).
+**This is the October plan.** On 2026-11-09 the project moved to the topic "Evaluation harness for an LLM feature, with CI regression testing". [harness-pivot.md](harness-pivot.md) has the current claim, plan, and status, and its [table of the existing work](harness-pivot.md#what-happens-to-the-existing-work) says what became of the pieces below. The dates, milestones, and checklists here were last changed on 2026-10-14. The checkboxes were not kept up to date, so they do not show what was built.
+
+This plan was due ≈ **Thu Oct 29**. Design: [design.md](design.md). Git rules: [CONTRIBUTING.md](../CONTRIBUTING.md).
 
 ## Owners
 
