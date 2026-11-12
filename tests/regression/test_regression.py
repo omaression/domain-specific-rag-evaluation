@@ -7,7 +7,7 @@ from typer.testing import CliRunner
 
 from deskrag.cli import app
 from deskrag.evaluation.baseline import promote_baseline
-from deskrag.evaluation.compare import compare_runs, load_gates
+from deskrag.evaluation.compare import compare_runs, load_gates, metric_verdict
 from deskrag.evaluation.report import report_run
 from deskrag.evaluation.stats import mcnemar_exact
 
@@ -35,6 +35,21 @@ def test_exact_mcnemar(b, c, p):
 def test_bad_counts(value):
     with pytest.raises(ValueError):
         mcnemar_exact(value, 0)
+
+
+@pytest.mark.parametrize(
+    ("metric", "baseline", "candidate", "p", "verdict"),
+    [
+        ("e2e_pass", 0.80, 0.75, 0.01, "OK"),  # a drop of exactly the tolerance is not worse
+        ("e2e_pass", 0.80, 0.70, 0.01, "REGRESSION"),
+        ("e2e_pass", 0.80, 0.70, 0.20, "POSSIBLE"),
+        ("e2e_pass", 0.80, 0.70, None, "POSSIBLE"),
+        ("e2e_pass", 0.70, 0.80, 0.01, "IMPROVED"),
+        ("format_error_rate", 0.0, 0.10, 0.01, "REGRESSION"),  # lower is better
+    ],
+)
+def test_metric_verdict(metric, baseline, candidate, p, verdict):
+    assert metric_verdict(metric, baseline, candidate, 0.05, p, 0.05) == verdict
 
 
 def test_regression_and_flips(pair):

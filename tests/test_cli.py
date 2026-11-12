@@ -23,6 +23,7 @@ COMMANDS = [
     ["baseline", "check"],
     ["runs", "list"],
     ["runs", "table"],
+    ["runs", "resample"],
 ]
 
 

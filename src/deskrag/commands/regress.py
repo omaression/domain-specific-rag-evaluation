@@ -8,11 +8,19 @@ import typer
 from deskrag.evaluation.baseline import evaluate_candidate, promote_baseline
 from deskrag.evaluation.compare import compare_runs, load_run
 from deskrag.evaluation.report import report_run, runs_table
+from deskrag.evaluation.resample import (
+    DRAWS,
+    SEED,
+    SIZES,
+    parse_candidate,
+    render,
+    resample_runs,
+)
 
 GATES = Path("configs/regression.yaml")
 RunDir = Annotated[Path, typer.Argument(help="Run directory.")]
 baseline_app = typer.Typer(help="Manage committed baselines.", no_args_is_help=True)
-runs_app = typer.Typer(help="List and tabulate runs.", no_args_is_help=True)
+runs_app = typer.Typer(help="List, tabulate, and resample runs.", no_args_is_help=True)
 
 
 def fail(exc: Exception) -> None:
@@ -120,6 +128,32 @@ def table(run_dirs: Annotated[list[Path], typer.Argument(help="Runs to compare."
         typer.echo(runs_table(run_dirs))
     except (ValueError, OSError) as exc:
         fail(exc)
+
+
+@runs_app.command("resample")
+def resample(
+    baseline: RunDir,
+    candidates: Annotated[
+        list[str], typer.Argument(help="Runs to judge against the baseline: PATH or LABEL=PATH.")
+    ],
+    gates: Annotated[Path, typer.Option(help="Metric tolerances.")] = GATES,
+    size: Annotated[
+        list[int] | None,
+        typer.Option(help="Subset size; repeat for more. Default 10, 20, 40. Plus the full set."),
+    ] = None,
+    draws: Annotated[int, typer.Option(help="Random subsets per size.")] = DRAWS,
+    seed: Annotated[int, typer.Option(help="Seed for drawing the subsets.")] = SEED,
+) -> None:
+    """Sensitivity: how often the gate blocks each run on random subsets of the cases.
+
+    Reads recorded runs only and calls no model. Prints Markdown.
+    """
+    try:
+        runs = [parse_candidate(text) for text in candidates]
+        result = resample_runs(baseline, runs, gates, size or list(SIZES), draws, seed)
+    except (ValueError, OSError) as exc:
+        fail(exc)
+    typer.echo(render(result))
 
 
 def regress(

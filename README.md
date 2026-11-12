@@ -47,7 +47,7 @@ Everything runs locally and free. The LLM and the embeddings come from [Ollama](
 | `deskrag index build`, `deskrag retrieve "…"` | build retrieval indexes; show the top chunks for a query | WS2 |
 | `deskrag ask "…"` | ask the chatbot one question | WS3 |
 | `deskrag eval run`, `deskrag eval sweep` | run and score the test set; tune the abstention gate | WS4 |
-| `deskrag compare A B`, `deskrag report`, `deskrag baseline promote`, `deskrag runs list` / `runs table` | regression check, reports, baselines | WS5 |
+| `deskrag compare A B`, `deskrag report`, `deskrag baseline promote`, `deskrag runs list` / `runs table` / `runs resample` | regression check, reports, baselines, sensitivity | WS5 |
 
 A command that isn't built yet exits with code 3 and names its owner.
 
