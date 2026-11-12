@@ -1,7 +1,8 @@
 # The reference system. Experiment configs in configs/experiments/ start with
 #   extends: ../baseline.yaml
 # and override only what differs. Owned by WS3 (feat/generation).
-# Changing this file changes the baseline, so the PR must include a compare.md.
+# Changing a setting here or the prompt makes baselines/ out of date, so the PR must include
+# a new recording (make record; see baselines/README.md).
 name: baseline
 system: rag
 corpus_dir: data/corpus/docs

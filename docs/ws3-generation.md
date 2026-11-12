@@ -81,8 +81,11 @@ The gate is off, so the model's own abstention is measured. For each model it re
 
 Results are in [model-bakeoff.md](model-bakeoff.md). The winner is pinned by exact tag in `configs/baseline.yaml`, and the runner-up in `configs/experiments/model-alt.yaml`. The first bake-off ran on the reference machine (M4 MacBook Air, 16 GB), so its speeds are best-case. The slowest laptop on the team should re-run the script before M2.
 
-## Not yet (needs WS4's runner or the frozen test set)
+## Not yet
+
+Since the move to the harness topic, either one would be a candidate change that goes through the gate, made only if there is time ([harness-pivot.md](harness-pivot.md#what-happens-to-the-existing-work)):
 
 - Tune `abstention.min_score` with `deskrag eval sweep` on dev.
-- Prompt v2 if it helps, with `compare.md` in the PR.
-- Official baseline on the reference machine and the promotion PR.
+- Prompt v2 if it helps, with a new recording in the PR (`make record`).
+
+The official baseline is done: `baselines/dev` is recorded on the reference machine with `make record` ([baselines/README.md](../baselines/README.md)).

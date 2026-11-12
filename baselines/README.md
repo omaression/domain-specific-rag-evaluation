@@ -19,7 +19,7 @@ git add baselines
 git commit -m "Record baselines"
 ```
 
-`make record` runs the dev split twice, with and without the LLM, and replaces both folders. It takes about 3 minutes for 26 cases. If either run fails, nothing is replaced.
+`make record` runs the dev split twice, with and without the LLM, and replaces both folders. It took about 6 minutes for the 60 cases on 2026-11-11 and on 2026-11-12. If either run fails, nothing is replaced.
 
 To see what a change does before recording it, run `make regress`. It compares a fresh run with `baselines/dev` and changes nothing.
 

@@ -10,8 +10,10 @@ Everything runs locally and free. The LLM and the embeddings come from [Ollama](
 
 | Read this | For |
 |---|---|
+| [docs/harness-pivot.md](docs/harness-pivot.md) | the project since 2026-11-09: the claim, the CI gates, the experiment, and its results |
 | [docs/design.md](docs/design.md) | architecture, shared contracts, metrics, regression detection |
-| [docs/workplan.md](docs/workplan.md) | owners, branches, milestones, per-workstream checklists |
+| [baselines/README.md](baselines/README.md) | how the baselines are recorded and what CI checks |
+| [docs/workplan.md](docs/workplan.md) | the October plan: owners, branches, milestones, per-workstream checklists |
 | [CONTRIBUTING.md](CONTRIBUTING.md) | git rules and file ownership |
 
 ## Setup
@@ -23,11 +25,10 @@ Everything runs locally and free. The LLM and the embeddings come from [Ollama](
    uv sync
    ```
 
-3. Pull the models named in `configs/baseline.yaml`. The chat model is a placeholder until the Day-1 bake-off.
+3. Pull the chat model pinned in `configs/baseline.yaml`, the winner of the Day-1 bake-off ([docs/model-bakeoff.md](docs/model-bakeoff.md)). The embedding model, `nomic-embed-text`, is only for dense and hybrid retrieval, which are not built.
 
    ```bash
-   ollama pull llama3.2:3b
-   ollama pull nomic-embed-text
+   ollama pull qwen3:4b-instruct-2507-q4_K_M
    ```
 
 4. Check that everything works:
@@ -47,7 +48,7 @@ Everything runs locally and free. The LLM and the embeddings come from [Ollama](
 | `deskrag index build`, `deskrag retrieve "…"` | build retrieval indexes; show the top chunks for a query | WS2 |
 | `deskrag ask "…"` | ask the chatbot one question | WS3 |
 | `deskrag eval run`, `deskrag eval sweep` | run and score the test set; tune the abstention gate | WS4 |
-| `deskrag compare A B`, `deskrag report`, `deskrag baseline promote`, `deskrag runs list` / `runs table` / `runs resample` | regression check, reports, baselines, sensitivity | WS5 |
+| `deskrag compare A B`, `deskrag regress`, `deskrag report`, `deskrag baseline record` / `check` / `promote`, `deskrag runs list` / `runs table` / `runs resample` | regression check, reports, recording and checking baselines, sensitivity | WS5 |
 
 A command that isn't built yet exits with code 3 and names its owner.
 

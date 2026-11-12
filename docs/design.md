@@ -11,9 +11,9 @@
 |---|---|
 | LLM | Local [Ollama](https://ollama.com), free. A small instruct model (~3–4B, Q4) picked by a Day-1 bake-off and pinned by tag; each run records the model digest. Settings: temperature 0, fixed seed, thinking off, and JSON-schema-constrained output (`format=`). |
 | Embeddings | Ollama embedding model, default `nomic-embed-text`. |
-| Domain | ~50–100 public help pages, snapshotted once. Frozen and fingerprinted, respecting robots.txt. |
+| Domain | 177 public help pages, snapshotted once. Frozen and fingerprinted, respecting robots.txt. |
 | Stack | Python 3.12 + uv; `ollama`, `rank-bm25`, `numpy`, `pydantic`, `pyyaml`, `typer`; `pytest`, `ruff`. No LangChain, RAGAS, torch, or scipy. The evaluation system is ours, so it stays small and inspectable. |
-| Deadline | ≈ Thu Oct 29. Milestones are in [workplan.md](workplan.md). |
+| Deadline | Two to four weeks after Nov 9, since the move to the harness topic. The plan is in [harness-pivot.md](harness-pivot.md#order-of-work). The October plan, due ≈ Thu Oct 29, is in [workplan.md](workplan.md). |
 
 ## Architecture
 
@@ -72,14 +72,14 @@ Two layers, which can be compared as an experiment:
 ## Test set
 
 - Files: `data/testset/<author>.jsonl` (format and rules in [data/testset/README.md](../data/testset/README.md)).
-- Target: ~150 cases, ~60% answerable and ~40% unanswerable, with at least 10 of every `case_type`. Types:
+- Size: 60 dev cases, frozen since 2026-11-11: 34 answerable and 26 unanswerable. The October plan was ~150 cases with at least 10 of every `case_type`. Types:
   - Answerable: `single_doc`, `multi_doc`, `paraphrase`.
   - Unanswerable: `out_of_domain`, `missing_info` (in-domain but absent from the corpus; the hardest), `false_premise`, `personal`.
-- Split: stratified by `case_type`, seed 42, ~100 dev / ~50 test, frozen at M2. Tune on dev; run test once at M3.
+- Split: every case is `dev`. The October plan had a stratified ~100 dev / ~50 test split. The harness topic dropped the test split, because its claim is about the gate, not the bot's final score.
 - Quality:
   - `deskrag data validate` checks that gold docs exist and that every fact appears in a gold doc.
-  - 20% of cases are double-labeled, and we report agreement.
-  - Small local models rarely know our university's specifics, so the test measures retrieval rather than memory. The closed-book experiment checks this.
+  - A blind second label on 20% of the cases (about 12 of the 60), with agreement reported, still needs a teammate.
+  - Small local models rarely know our university's specifics, so the test measures retrieval rather than memory. The closed-book planted run checks this: without retrieval, e2e_pass fell from 0.78 to 0.22 ([harness-pivot.md](harness-pivot.md#1-detection)).
 
 ## Metrics
 
@@ -124,7 +124,7 @@ runs/<run_id>/                 run_id = <UTC yyyymmdd-hhmmss>-<config name>-<con
 ## Regression detection
 
 `deskrag compare BASE CAND`:
-1. **Refuses** if the dataset fingerprint or split differs. **Warns** if the machine or model digests differ, because Ollama output can vary across hardware. Official baselines and comparisons run on one reference machine (set `DESKRAG_MACHINE=reference`).
+1. **Refuses** (exit 2) unless the two runs pair up case by case: the same dataset fingerprint and split, the same case IDs, the same corpus fingerprint, and one repetition each. It also refuses a run with infra errors or missing cases. **Warns** if the machine or model digests differ, because Ollama output can vary across hardware. Official baselines and comparisons run on one reference machine (set `DESKRAG_MACHINE=reference`).
 2. Compares each metric's delta with its tolerance in `configs/regression.yaml`, taking the better direction from `METRIC_DIRECTION`.
 3. Runs an **exact McNemar test** on the paired per-case booleans (`e2e_pass`, `hit@5`, `abstain_correct`, …), in pure Python with `math.comb`.
 4. Assigns each metric a verdict:
@@ -133,14 +133,19 @@ runs/<run_id>/                 run_id = <UTC yyyymmdd-hhmmss>-<config name>-<con
    - `OK` or `IMPROVED`.
 5. Lists flipped cases (pass→fail and fail→pass) with their failure tags, writes `compare.md`, and exits 1 on any gated `REGRESSION`.
 
-With ~100 dev cases the noise floor is roughly 1/√n ≈ ±10 points. Large drops are reliably caught; small ones show up as `POSSIBLE`. The class report should say this plainly.
+The gated metrics are `e2e_pass`, `hit@5`, and `abstain_correct`, each with tolerance 0.05. At alpha 0.05, a gated metric needs at least 6 pass-to-fail flips with none the other way before it can be a `REGRESSION` (p = 0.03125); 5 give p = 0.0625. The [results tables](harness-pivot.md#results-tables) show what this means on the 60 dev cases.
 
-Baselines change only through a PR that runs `deskrag baseline promote` and includes `compare.md`.
+**Baselines** come from `make record` (`deskrag baseline record`) on the reference machine. It runs the dev split with and without the LLM and replaces `baselines/dev` and `baselines/dev-retrieval`. It refuses to run with uncommitted changes, so each recording matches a commit, and it replaces nothing unless both runs are complete and have no infra errors. A PR that changes anything a recording depends on (the pipeline code, its config or prompt, the cases, or the corpus) commits a new recording. [baselines/README.md](../baselines/README.md) has the rule for each kind of change.
 
-**CI:**
-- Every PR runs lint, format, and pytest. Pytest also validates committed configs, corpus files, and test cases.
-- At M2, WS5 adds a `retrieval-gate` job: a BM25 retrieval-only eval on dev against `baselines/dev-retrieval/`. It needs no LLM and runs in about a minute.
-- Full LLM evals run locally with `make regress`, because local models can't run cheaply on CI runners.
+**CI** never calls a model. It runs four jobs on every pull request and on every push to main:
+- `test`: ruff, the format check, and pytest. Pytest also validates the committed configs, corpus files, and test cases.
+- `regression-contract`: `compare` on two fixture runs. An unchanged run must pass, and a planted candidate must exit 1.
+- `retrieval-gate`: runs BM25 again on the runner and compares it with `baselines/dev-retrieval` under `baselines/retrieval-gates.yaml`, where hit@5 and hit@1 are gated. Then it checks that recording the way `llm-gate` checks `baselines/dev`.
+- `llm-gate`: `deskrag baseline check` on `baselines/dev`, which takes seconds. It fails if the recording is out of date (the pipeline code, the config or its prompt, the corpus, or the cases changed since it was recorded), if scoring the recorded answers again does not give the committed scores, or if the recording is a gated regression against the base branch's copy.
+
+The base branch's copy is not always comparable. When the cases, the corpus, or the recording machine changed, the check accepts the new recording without a comparison, and the reviewer reads the new numbers. A change to more than one of system, data, and machine fails. A PR that changes none of them keeps the base branch's recording and passes.
+
+On the fork's main, branch protection requires all four jobs, admins included. The team repo's main is not protected yet; only its owner can turn that on. `make regress` runs the dev split and compares it with `baselines/dev` without changing anything, so an author can see the verdict before recording. [harness-pivot.md](harness-pivot.md#why-ci-does-not-run-the-model) says why CI checks a recording instead of running the model.
 
 ## Configs
 
@@ -154,11 +159,13 @@ Baselines change only through a PR that runs `deskrag baseline promote` and incl
 | `index build`, `retrieve` | `commands/retrieval.py` | WS2 |
 | `ask` | `commands/ask.py` | WS3 |
 | `eval run`, `eval sweep` | `commands/evaluate.py` | WS4 |
-| `compare`, `report`, `baseline promote`, `runs list`, `runs table`, `runs resample` | `commands/regress.py` | WS5 |
+| `compare`, `regress`, `report`, `baseline record`, `baseline check`, `baseline promote`, `runs list`, `runs table`, `runs resample` | `commands/regress.py` | WS5 |
 
 ## Known limitations (for the report)
 
 - Small local models make more mistakes. That is good for an eval project, because it leaves room to measure.
-- With ~100 dev cases, small differences aren't statistically detectable.
+- With 60 dev cases, a gated metric has to lose at least 6 cases with none gained (or 8 with 1 gained, or 10 with 2) before the gate can block it. Two planted regressions, `no-abstain` and `chunk50`, got through ([harness-pivot.md](harness-pivot.md#1-detection)).
+- CI trusts whoever records. It can prove that a recording matches the code and data and that nobody edited the scores, but not that the answers came from the model.
+- A PR that changes the cases or the corpus is accepted without a comparison, so the reviewer is the only check on it.
 - Outputs can differ across hardware even at temperature 0, so comparisons should stay on one machine.
 - `must_include` matching is lexical. A correct paraphrase of a number or name can be scored as wrong. An LLM judge calibrated against human labels is a stretch goal.

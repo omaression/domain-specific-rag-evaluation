@@ -9,9 +9,10 @@
 
 ## Eval impact
 
-<!-- Required if this PR touches src/deskrag/rag/, configs/, prompts, or data/:
-paste the compare.md from `deskrag compare <baseline run> <your run>`.
-Otherwise write "none". -->
+<!-- Required if this PR changes anything the recordings depend on (pipeline code,
+configs/baseline.yaml or configs/ci-retrieval.yaml, a prompt, the cases, or the corpus):
+commit a new recording from `make record` on the reference machine (see baselines/README.md)
+and say what changed. CI's llm-gate summary shows the comparison. Otherwise write "none". -->
 
 ## Contract change?
 

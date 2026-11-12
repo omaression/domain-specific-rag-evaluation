@@ -31,9 +31,9 @@ git push
 2. **Merge early and often.** Open your first PR within 2–3 days, then merge at least every 2–3 days. PRs are squash-merged. Keep working on the same branch after a merge.
 3. **Contracts are frozen.** `src/deskrag/core/`, `systems.py`, `cli.py`, `pyproject.toml`, and `uv.lock` change only through a small `contract/<what>` PR. It needs 2 reviewers, including the owners of the affected workstreams. Merge it the same day and announce it in the group chat.
 4. **A new dependency gets its own tiny PR** (`uv add <package>`), so `uv.lock` never conflicts.
-5. **Show the eval impact.** A PR that touches `src/deskrag/rag/`, `configs/`, prompts, or `data/` includes the `compare.md` from `deskrag compare` (once WS5 ships it).
+5. **Record the eval impact.** A PR that changes anything the recordings depend on (the pipeline code, `configs/baseline.yaml` or `configs/ci-retrieval.yaml`, the prompt, the cases, or the corpus) includes a new recording: run `make record` on the reference machine and commit `baselines/`. CI's `llm-gate` and `retrieval-gate` compare it with the base branch's and fail on a gated regression. [baselines/README.md](baselines/README.md) has the details.
 6. **Test cases go in your own file**, `data/testset/<your-name>.jsonl`, with case ids prefixed by your initials. See [data/testset/README.md](data/testset/README.md).
-7. **Never tune on the test split.** Prompts, thresholds, and `k` are tuned on `dev`. The `test` split is run once, at M3.
+7. **There is no test split.** The harness topic dropped it, so every case is `dev`. The gate settings in `configs/regression.yaml` stay frozen for the experiment ([docs/harness-pivot.md](docs/harness-pivot.md#the-experiment)).
 
 ## File ownership
 
@@ -49,11 +49,11 @@ git push
 | `configs/experiments/<name>.yaml` | anyone (one file per experiment) |
 | `tests/<area>/` | same owner as the code it tests |
 
-Baseline promotions: WS3 runs them on the reference machine and opens the PR; WS5 reviews it.
+Recordings: WS3 runs `make record` on the reference machine and commits `baselines/`; WS5 reviews the diff.
 
 ## For the repo owner: protect `main`
 
 In Settings → Branches, add a rule for `main`:
 - require a pull request with 1 approval
-- require the `CI / test` check to pass
+- require the four CI checks to pass (`test`, `regression-contract`, `retrieval-gate`, `llm-gate`), and include administrators
 - allow squash merging
