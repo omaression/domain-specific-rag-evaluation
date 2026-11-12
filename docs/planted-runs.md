@@ -1,6 +1,6 @@
 # Planted and control runs, 2026-11-11
 
-Every run behind the detection and false-alarm tables in [harness-pivot.md](harness-pivot.md#results-tables), with all metrics and every flipped case.
+Every run behind the detection and false-alarm tables in [harness-pivot.md](harness-pivot.md#results-tables), with all metrics and every flipped case. The [last section](#sensitivity) has the resampling behind the sensitivity table.
 
 All runs used the reference Mac (Apple M4, 16 GB, macOS 27.0.1, Ollama 0.40.3) and the 60 frozen dev cases, one run at a time. LLM runs are `make regress CONFIG=...` with `DESKRAG_MACHINE=reference`, compared with `baselines/dev` (run `20261111-174152-baseline-d045262d`) under `configs/regression.yaml`. Retrieval-only runs use the retrieval gate's command with the planted config, compared with `baselines/dev-retrieval` (run `20261111-174749-ci-retrieval-d045262d`) under `baselines/retrieval-gates.yaml`. The run folders are in `runs/` on the Mac, which git ignores.
 
@@ -382,3 +382,80 @@ Flipped cases (lost: pass to fail, counted in b; gained: fail to pass, counted i
 `configs/experiments/closed-book.yaml`, started 13:23 EST. Exit 2: the run failed, nothing was compared. About 1 second.
 
 No run: `--retrieval-only` refused the config (needs a config with system: rag).
+
+## Sensitivity
+
+The resampling behind the [sensitivity table](harness-pivot.md#3-sensitivity), run on 2026-11-12 on the run folders above. No model was called and nothing in `runs/` changed. Each size has 100,000 random subsets of the 60 case IDs, drawn without replacement with seed 20261112, and all 60 is judged once. Those are the command's defaults, so neither is passed below.
+
+### LLM gate
+
+Against the recording, under `configs/regression.yaml`:
+
+```bash
+uv run deskrag runs resample runs/20261111-174152-baseline-d045262d \
+  closed-book=runs/20261111-183540-closed-book-28802e2c \
+  maxtok32=runs/20261111-191020-maxtok32-10120677 \
+  gate-high=runs/20261111-191943-gate-high-ef7bef58 \
+  k1=runs/20261111-183057-k1-230af418 \
+  no-abstain=runs/20261111-183729-no-abstain-c01645b6 \
+  chunk50=runs/20261111-190418-chunk50-fbe8fc90 \
+  k3=runs/20261111-183249-k3-b11887a8 \
+  no-cite=runs/20261111-185622-no-cite-f4ba57f7 \
+  rerun-1=runs/20261111-182357-baseline-d045262d \
+  rerun-2=runs/20261111-184850-baseline-d045262d \
+  rerun-3=runs/20261111-191650-baseline-d045262d \
+  rerun-4=runs/20261111-193728-baseline-d045262d \
+  rerun-5=runs/20261111-203937-baseline-d045262d \
+  reworded=runs/20261111-192051-reworded-278cde98 \
+  seed43=runs/20261111-192900-seed43-2a80d55c
+```
+
+The share of subsets on which each gated metric gets a REGRESSION verdict. Runs that are 0% on every metric at every size are left out: `chunk50`, `k3`, `no-cite`, and the seven controls.
+
+| Run | Cases | e2e_pass | hit@5 | abstain_correct |
+|---|---:|---:|---:|---:|
+| `closed-book` | 10 | 49% | 36% | 1% |
+| `closed-book` | 20 | 99% | 99% | 14% |
+| `closed-book` | 40 | 100% | 100% | 42% |
+| `maxtok32` | 10 | 10% | 0% | 28% |
+| `maxtok32` | 20 | 85% | 0% | 98% |
+| `maxtok32` | 40 | 100% | 0% | 100% |
+| `gate-high` | 10 | <1% | 0% | <1% |
+| `gate-high` | 20 | 5% | 0% | 11% |
+| `gate-high` | 40 | 34% | 0% | 58% |
+| `k1` | 10 | <1% | <1% | <1% |
+| `k1` | 20 | 3% | 1% | 2% |
+| `k1` | 40 | 23% | 46% | 14% |
+| `no-abstain` | 10 | <1% | 0% | <1% |
+| `no-abstain` | 20 | <1% | 0% | <1% |
+| `no-abstain` | 40 | 3% | 0% | 1% |
+
+In 13 of the 100,000 subsets of 10, no case is answerable, so hit@5 applies to none of them and cannot block those subsets.
+
+### Retrieval gate
+
+Against `baselines/dev-retrieval`, under `baselines/retrieval-gates.yaml`. These are the retrieval-only runs from [Retrieval only](#retrieval-only); `closed-book` has none.
+
+```bash
+uv run deskrag runs resample runs/20261111-174749-ci-retrieval-d045262d \
+  k1=runs/20261111-182353-k1-230af418 \
+  chunk50=runs/20261111-182355-chunk50-fbe8fc90 \
+  k3=runs/20261111-182354-k3-b11887a8 \
+  ci-retrieval=runs/20261111-182353-ci-retrieval-d045262d \
+  --gates baselines/retrieval-gates.yaml
+```
+
+| Run | Lowest p on all 60 | 10 cases | 20 cases | 40 cases | All 60 |
+|---|---|---:|---:|---:|---:|
+| `k1` | hit@5 8 / 0 / 0.00781 | <1% | 1% | 46% | 100% |
+| `chunk50` | hit@1 4 / 1 / 0.375 | 0% | 0% | 0% | 0% |
+| `k3` | hit@5 1 / 0 / 1 | 0% | 0% | 0% | 0% |
+| `ci-retrieval` | none | 0% | 0% | 0% | 0% |
+
+Every block comes from hit@5. hit@1 got no REGRESSION verdict on any subset. In the same 13 subsets of 10, neither hit@5 nor hit@1 applies to any case.
+
+### Checks
+
+- **Seed.** Rerunning both with seed 1 moved no cell by more than 0.40 points for the LLM gate and 0.18 for the retrieval gate. At 10,000 subsets per size the largest move was 1.05 points, so I used 100,000.
+- **Exact odds.** Three cells follow from the flipped cases above, and the resampled shares match them. k1's hit@5 at 40 cases needs at least 6 of its 8 lost cases in the subset: 46.08%, resampled 46%. maxtok32's abstain_correct at 20 needs at least 6 of its 28: 98.33%, resampled 98%. no-abstain at 40 needs at least 6 of its 7 lost cases and neither of the 2 it gained: 3.13%, resampled 3%.
+- **Same rule as `compare`.** The command judges the full set with `compare`'s own code and stops if its verdict differs. `compare.py` was split up so the command could reuse it. Before and after that change, `compare` run on copies of the 19 run folders above gave the `compare.md` already in each one, byte for byte.

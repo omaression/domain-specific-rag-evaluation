@@ -2,7 +2,7 @@
 
 Proposed by Omar on 2026-11-09. Not reviewed by the group yet.
 
-Updated on 2026-11-11 after week 1: CI no longer runs the model. The LLM gate checks a run recorded on the reference Mac ([why](#why-ci-does-not-run-the-model)). [Week 1 status](#week-1-status) has the first results. The [results tables](#results-tables) have the planted and control runs on the 60 cases.
+Updated on 2026-11-11 after week 1: CI no longer runs the model. The LLM gate checks a run recorded on the reference Mac ([why](#why-ci-does-not-run-the-model)). [Week 1 status](#week-1-status) has the first results. The [results tables](#results-tables) have the planted and control runs on the 60 cases, and since 2026-11-12 how often the gate blocks them on fewer cases.
 
 ## Why we are changing
 
@@ -149,7 +149,7 @@ Every config runs on the Mac with `make regress CONFIG=...`, which applies the s
 
 ### Question 3
 
-No new LLM calls. A script takes the full Mac runs for the baseline and each planted config, draws random subsets of 10, 20, 40, and all cases, applies the same gate rule, and reports how often the verdict is REGRESSION at each size.
+No new LLM calls. A script takes the full Mac runs for the baseline and each planted config, draws random subsets of 10, 20, 40, and all cases, applies the same gate rule, and reports how often the verdict is REGRESSION at each size. The script is `deskrag runs resample`, and it judges the controls the same way ([results](#3-sensitivity)).
 
 ### Results tables
 
@@ -211,7 +211,29 @@ An answer differs if its text, abstain decision, citations, or status differ.
 
 #### 3. Sensitivity
 
-Not done yet (step 6). It reuses the runs above, which stay in `runs/` on the Mac. `model-alt`, the one real change, has not run yet either.
+`deskrag runs resample` answers question 3 from the runs above, with no new model calls. For each size it drew 100,000 random subsets of the 60 case IDs with seed 20261112, kept only those cases in the recording and in each run, and applied the LLM gate's rule to what was left: e2e_pass, hit@5, and abstain_correct, each with tolerance 0.05 and the exact McNemar test at alpha 0.05. Every run was judged on the same subsets. A cell is the share of subsets on which the gate would block the run. All 60 is the full set, judged once, so that column is the LLM gate column of the detection table. The lowest p column shows, of the gated metrics that lost more cases than they gained on all 60, the one with the smallest p, as b / c / p. [planted-runs.md](planted-runs.md#sensitivity) has the commands and the share for each metric.
+
+| Run | Lowest p on all 60 | 10 cases | 20 cases | 40 cases | All 60 |
+|---|---|---:|---:|---:|---:|
+| `closed-book` | hit@5 30 / 0 / < 0.001 | 63% | >99% | 100% | 100% |
+| `maxtok32` | abstain_correct 28 / 0 / < 0.001 | 28% | 98% | 100% | 100% |
+| `gate-high` | abstain_correct 13 / 2 / 0.00739 | <1% | 11% | 58% | 100% |
+| `k1` | hit@5 8 / 0 / 0.00781 | <1% | 5% | 56% | 100% |
+| `no-abstain` | e2e_pass 7 / 2 / 0.18 | <1% | <1% | 3% | 0% |
+| `chunk50` | abstain_correct 5 / 0 / 0.0625 | 0% | 0% | 0% | 0% |
+| `k3` | hit@5 1 / 0 / 1 | 0% | 0% | 0% | 0% |
+| `no-cite` | none | 0% | 0% | 0% | 0% |
+| Each control: `rerun-1` to `rerun-5`, `reworded`, `seed43` | none | 0% | 0% | 0% | 0% |
+
+What the table shows:
+
+- **The answer to question 3.** With the frozen gate settings, a change that breaks a third or more of the cases is blocked on 20 cases almost every time. One that breaks about a sixth of them is blocked on a little over half of the 40-case subsets. One that breaks 5 to 7 is not blocked on all 60, and rarely on a subset.
+- **Big breaks are caught on small sets.** `closed-book` lost 34 of the 46 passing cases. It was blocked on 63% of the 10-case subsets and on more than 99% of the 20-case ones. `maxtok32` cut off 30 of the 60 replies and was blocked on 28% at 10 and 98% at 20.
+- **Breaks of 10 or 11 cases are caught about half the time on 40.** `k1` and `gate-high` lost 10 and 11 passing cases end to end. They were blocked on under 1% of the 10-case subsets, on 5% and 11% of the 20-case ones, and on 56% and 58% of the 40-case ones.
+- **The two that got through stay through.** To reach p < 0.05, a metric needs at least 6 cases lost with none gained, or 8 with 1 gained, or 10 with 2, and more as the gains grow. `chunk50` never lost more than 5 on a gated metric, so no subset can block it. `no-abstain` lost 7 and gained 2 on e2e_pass. It was blocked on 3% of the 40-case subsets, and every one of those left out kp-005 and om-008, the two cases it gained. The full set has both.
+- **No false alarms at any size.** The controls flipped no case on a gated metric, so no subset of them can be blocked. That only shows a smaller set cannot turn identical verdicts into a false alarm; the false-alarm table is still the evidence. `k3` and `no-cite`, the planted changes with a small effect or none, were never blocked either.
+- **The retrieval gate adds nothing here.** Run the same way against `baselines/dev-retrieval`, it blocked only `k1`: on 1% of the 20-case subsets and 46% of the 40-case ones. Its hit@5 and hit@1 scores match the LLM runs case for case, and hit@1 never lost more than 4 cases, so it blocks only subsets that the LLM gate's hit@5 already blocks.
+- **Left out and how precise.** `ctx1024` has no row: it stopped on infra errors, so there is no run to compare. `model-alt`, the one real change, has not run yet. Rerunning with seed 1 moved no cell by more than 0.4 points. All 60 is one verdict, so it can only be 0% or 100%.
 
 ## Test set
 
@@ -244,7 +266,7 @@ Commits are grouped by workstream area so each owner can review their part:
 3. Record the baselines, make the retrieval gate blocking, add the LLM gate job. Done, as replay.
 4. Write the 34 new cases.
 5. Planted configs and prompts, and the control runs, all on the Mac. Done on 2026-11-11 ([results](#results-tables)).
-6. The resampling script.
+6. The resampling script. Done on 2026-11-12 ([results](#3-sensitivity)).
 7. Report, repo docs, deck.
 
 | Week | Dates | Done when |

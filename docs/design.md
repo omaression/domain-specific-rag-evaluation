@@ -154,7 +154,7 @@ Baselines change only through a PR that runs `deskrag baseline promote` and incl
 | `index build`, `retrieve` | `commands/retrieval.py` | WS2 |
 | `ask` | `commands/ask.py` | WS3 |
 | `eval run`, `eval sweep` | `commands/evaluate.py` | WS4 |
-| `compare`, `report`, `baseline promote`, `runs list`, `runs table` | `commands/regress.py` | WS5 |
+| `compare`, `report`, `baseline promote`, `runs list`, `runs table`, `runs resample` | `commands/regress.py` | WS5 |
 
 ## Known limitations (for the report)
 
