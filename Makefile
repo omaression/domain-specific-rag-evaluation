@@ -30,6 +30,7 @@ regress:
 	uv run deskrag regress --config $(CONFIG) --baseline $(BASELINE) --gates $(GATES)
 
 # WS5: on the reference machine only, from a clean tree. Runs the dev split with and without the
-# LLM and replaces baselines/dev and baselines/dev-retrieval. CI's llm-gate checks the result.
+# LLM and replaces baselines/dev and baselines/dev-retrieval. CI's llm-gate and retrieval-gate
+# check the results.
 record:
 	DESKRAG_MACHINE=reference uv run deskrag baseline record

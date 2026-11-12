@@ -1,6 +1,5 @@
-# Real BM25, no Ollama. WS4 must support --retrieval-only.
+# baseline.yaml under another name, for retrieval-only runs: baselines/dev-retrieval and the CI
+# retrieval gate. Override nothing here, so a retrieval change in baseline.yaml (k, chunking)
+# reaches the gate; a test checks this. The CI runner has no Ollama, so the gate can only run BM25.
 extends: baseline.yaml
 name: ci-retrieval
-retrieval:
-  method: bm25
-  k: 5

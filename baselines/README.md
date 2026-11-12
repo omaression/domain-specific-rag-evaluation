@@ -5,7 +5,7 @@ Runs of the dev split, recorded on the reference machine and committed. CI never
 | Baseline | What it is | Checked by |
 |---|---|---|
 | `dev/` | Full pipeline, every dev case (`configs/baseline.yaml`) | CI `llm-gate`, and `make regress` locally |
-| `dev-retrieval/` | BM25, retrieval only, every dev case (`configs/ci-retrieval.yaml`) | CI `retrieval-gate`, which runs BM25 again on the runner |
+| `dev-retrieval/` | BM25, retrieval only, every dev case (`configs/ci-retrieval.yaml`, the same settings as `configs/baseline.yaml`) | CI `retrieval-gate`, which also runs BM25 again on the runner |
 
 Each folder holds the run's files plus `source.json`, the fingerprint of the pipeline code it ran on. `retrieval-gates.yaml` holds the tolerances for the retrieval gate; `llm-gate` uses `configs/regression.yaml`.
 
@@ -23,15 +23,19 @@ git commit -m "Record baselines"
 
 To see what a change does before recording it, run `make regress`. It compares a fresh run with `baselines/dev` and changes nothing.
 
-## What `llm-gate` checks
+## What the gates check
 
-`deskrag baseline check` runs in seconds and answers three questions:
+Both gates run `deskrag baseline check` on their recording: `llm-gate` on `dev/`, `retrieval-gate` on `dev-retrieval/`. It runs in seconds and answers three questions:
 
 1. **Is the recording fresh?** It recomputes four fingerprints and compares them with the recording: the pipeline code (`src/deskrag/core`, `src/deskrag/rag`, `src/deskrag/systems.py`, `uv.lock`), the config and its prompt, the corpus, and the dev cases. If any differ, the check fails and names which.
 2. **Are the scores honest?** It scores the recorded answers again. The result must equal the committed scores.
-3. **Is it worse?** It compares the recording with the base branch's `baselines/dev`. A gated regression fails the check.
+3. **Is it worse?** It compares the recording with the base branch's copy of it. A gated regression fails the check. `make record` replaces both recordings in the same pull request, so this is the only step that can catch a change that was recorded.
+
+`retrieval-gate` also runs BM25 again on the runner, with no model, and compares that run with `dev-retrieval/`. A gated regression fails it too.
 
 ## What each kind of change needs
+
+Both gates follow these rules.
 
 | The change touches | What to do | What the gate does |
 |---|---|---|
@@ -41,6 +45,6 @@ To see what a change does before recording it, run `make regress`. It compares a
 | A new reference machine | `make record` on it | Passes without a comparison, for the same reason |
 | More than one of the last three | Split the pull request | Fails |
 
-## What the gate cannot check
+## What the gates cannot check
 
-That the recorded answers came from the model. CI trusts the person who recorded. It can only prove the recording matches this code and data and that nobody edited the scores.
+That the recorded answers came from the model. CI trusts the person who recorded. It can only prove the recording matches this code and data and that nobody edited the scores. The retrieval recording is checked a little further, because the runner can run BM25: the fresh run must not be a gated regression against it.

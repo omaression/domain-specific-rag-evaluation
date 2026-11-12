@@ -42,7 +42,7 @@ Question 3 matters because the gate is weak on a small set. `compare` blocks onl
 | Check | When it runs | What it compares | State on the fork's main, 2026-11-11 |
 |---|---|---|---|
 | Lint, tests, fixture contract | Every PR | A planted fixture must fail | Required, passing |
-| Retrieval gate | Every PR, no LLM | BM25 on all dev cases against `baselines/dev-retrieval` | Required, passing |
+| Retrieval gate | Every PR, no LLM | A fresh BM25 run on all dev cases against `baselines/dev-retrieval`, and that recording against the base branch's copy | Required, passing |
 | LLM gate | Every PR, no LLM, about 10 s | The committed `baselines/dev` against the base branch's copy | Required, passing |
 | Recording | The reference Mac, `make record`, about 3 minutes | Runs all dev cases and replaces `baselines/dev` and `baselines/dev-retrieval` | Works |
 
@@ -100,10 +100,11 @@ Week 1 closed three of the four gaps listed here on 2026-11-09: `eval run --retr
 
 The fourth was decided on 2026-11-11, before any planted run. `compare` used to stop with "Applicability changed" (exit 2) when a case had a score in one run and none in the other. A truncated or unparsable reply had no `abstain_correct`, so a change that caused format errors failed the gate as an invalid comparison instead of as a regression, and a single format error blocked a harmless change the same way. Now such a reply scores `abstain_correct` 0, as it already scored `e2e_pass` 0, and the usual McNemar rule judges it. `false_abstain_rate`, `missed_abstain_rate`, and abstain precision and recall still leave it out. The committed baselines have no format errors, so none of their scores changed.
 
+The planted runs found another gap, and fork PR #16 closes it. The retrieval gate compared a fresh BM25 run with the PR's own `baselines/dev-retrieval`, which `make record` replaces in the same PR. Its config also pinned k to 5. So it could not block a retrieval change that was recorded, and on a real PR it would have passed both `k1` and `chunk50` ([detection](#1-detection)). Now the job also runs `deskrag baseline check` on the PR's recording against the base branch's copy, as the LLM gate does, and `configs/ci-retrieval.yaml` takes every setting from `configs/baseline.yaml`. Run locally, the job blocks a recorded `k1` (hit@5 b = 8, c = 0, p = 0.0078). A recorded `chunk50` still only warns (hit@5 b = 3, c = 1, p = 0.625).
+
 Still open:
 
 - **Data PRs are not compared.** Every PR that adds or edits cases has to run `make record`, and the gate accepts it without a comparison. The reviewer is the only check on a data PR.
-- **The retrieval gate compares a PR with itself.** It runs BM25 again and compares the result with the PR's own `baselines/dev-retrieval`, which `make record` replaces in the same PR. Its config also pins k to 5. So it cannot block a retrieval change that was recorded, and on a real PR it would have passed both `k1` and `chunk50` ([detection](#1-detection)). The LLM gate's hit@5 covers retrieval for now: it blocked `k1` with b = 8, c = 0. Comparing with the base branch's copy, as the LLM gate does, would fix it.
 - **Latency warns on noise.** Three runs of unchanged code on 26 cases gave `latency_p95_s` from 5.4 to 9.1 s. Five runs on the 60 cases gave 5.2 to 10.4 s against 7.8 s in the recording, and two of the five warned at its 2.0 s tolerance. It is warn-only, so it never blocks, but its warnings mean little at this size.
 
 ## The experiment
@@ -186,7 +187,7 @@ What the table shows:
 - **Blocked without a verdict: `ctx1024`.** Ollama 0.40.3 does not cut a long prompt. It refuses it with HTTP 400 ("exceeds the available context size"). 59 of the 60 prompts were 1,282 to 2,230 tokens; only `ff-010` (978 tokens) fit. The harness counts each refusal as an infra error, so the run stops with exit 2 and nothing is compared. `make record` refuses a run with infra errors, so a PR with this change would keep the old recording, and the LLM gate would fail it as out of date.
 - **Got through: 2 real regressions.** Without its abstain rules, the bot answered 9 unanswerable questions instead of 2. It lost 7 passing cases and gained 2, so p = 0.18. In week 1, on 26 cases, the same change gave b = 3, c = 1. `chunk50` lost 5 and gained 1 on e2e_pass. On abstain_correct it lost 5 with none back, p = 0.0625, one flip short of the 6 the gate needs. Both only warned.
 - **Passed, with a small effect or none: `k3` and `no-cite`.** `k3` lost one source page (`om-010`), and e2e_pass lost two cases and gained two. `no-cite` changed nothing the gate measures. All 30 answers still cited a document, and citation_valid went from 0.966 to 1.0, because the reply format still has a "citations" field. A change that drops citations would have to be in the code, not the prompt.
-- **The retrieval column is not what CI would show.** These rows ran each planted config retrieval-only against main's `baselines/dev-retrieval`, as planned above. CI's retrieval gate does something else. It runs `configs/ci-retrieval.yaml`, which pins k to 5, and it compares with the PR's own `baselines/dev-retrieval`, which `make record` replaces in the same PR. So on a real PR it would pass both `k1` and `chunk50`. [Gaps](#gaps-in-the-current-code) lists this.
+- **The retrieval column was not what CI showed until fork PR #16.** These rows ran each planted config retrieval-only against main's `baselines/dev-retrieval`, as planned above. CI's retrieval gate did something else. It ran `configs/ci-retrieval.yaml`, which pinned k to 5, and compared with the PR's own `baselines/dev-retrieval`, which `make record` replaces in the same PR. So on a real PR it would have passed both `k1` and `chunk50`. PR #16 fixed this ([Gaps](#gaps-in-the-current-code) says how). After the fix, each planted change was put in `configs/baseline.yaml`, recorded retrieval-only, and run through the job's steps. `k1`, `k3`, and `chunk50` got the verdicts and the b, c, and p in this column. The five rows marked "No retrieval change" had no flips. `closed-book` still cannot be recorded retrieval-only.
 
 #### 2. False alarms
 

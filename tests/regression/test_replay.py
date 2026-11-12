@@ -6,19 +6,23 @@ import shutil
 from pathlib import Path
 
 import pytest
+import yaml
 from typer.testing import CliRunner
 
 from deskrag.cli import app
-from deskrag.core.config import load_config
+from deskrag.core.config import config_hash, load_config
 from deskrag.core.dataset import load_cases
 from deskrag.core.fakes import FakeRAGSystem
 from deskrag.evaluation import replay
 from deskrag.evaluation.baseline import promote_baseline
 from deskrag.evaluation.replay import check_baseline, code_sha256, record_baselines, write_source
+from deskrag.evaluation.retrieval_only import RetrievalOnlySystem
 from deskrag.evaluation.runner import run_cases
+from deskrag.rag.retrieval import build_retriever
 
 REPO = Path(__file__).resolve().parents[2]
 SAMPLES = REPO / "data" / "samples"
+CI = REPO / ".github" / "workflows" / "ci.yml"
 RUN_NUMBER = itertools.count(1)
 
 CONFIG = f"""\
@@ -37,10 +41,18 @@ metrics:
   hit@5: {tolerance: 0.05, gate: true}
   e2e_pass: {tolerance: 0.05, gate: false}
 """
+# baselines/retrieval-gates.yaml, with alpha 0.2 for the same reason.
+RETRIEVAL_GATES = """\
+alpha: 0.2
+metrics:
+  hit@5: {tolerance: 0.05, gate: true}
+  hit@1: {tolerance: 0.05, gate: true}
+  mrr: {tolerance: 0.05, gate: false}
+"""
 
 
 class NoRetrieval:
-    """The fake system with retrieval broken: every answerable case loses its gold document."""
+    """A system with retrieval broken: every answerable case loses its gold document."""
 
     def __init__(self, inner):
         self.inner = inner
@@ -80,18 +92,41 @@ class World:
         self.config.write_text(CONFIG, encoding="utf-8")
         self.gates = root / "gates.yaml"
         self.gates.write_text(GATES, encoding="utf-8")
+        self.retrieval_gates = root / "retrieval-gates.yaml"
+        self.retrieval_gates.write_text(RETRIEVAL_GATES, encoding="utf-8")
         self.cases = SAMPLES / "cases.jsonl"
         self.baselines = root / "baselines"
         self.runs = root / "runs"
 
-    def record(self, name: str = "dev", *, system=None, root: Path | None = None) -> Path:
-        """Run the cases through `system` (the fake one by default) and store it as a baseline."""
+    def record(
+        self,
+        name: str = "dev",
+        *,
+        system=None,
+        root: Path | None = None,
+        retrieval_only: bool = False,
+    ) -> Path:
+        """Run the cases through `system` and store it as a baseline. The default system is the
+        fake one, or the retriever alone for a retrieval-only run."""
         cfg = load_config(self.config)
         cases = load_cases(self.cases, split="dev")
         run_id = f"run-{next(RUN_NUMBER)}"
         run_dir = self.runs / run_id
-        fake = FakeRAGSystem.from_corpus_dir(cfg.corpus_dir)
-        run_cases(run_id, cases, system or fake, run_dir, config=cfg, dataset_path=str(self.cases))
+        if system is None:
+            system = (
+                self.retriever()
+                if retrieval_only
+                else FakeRAGSystem.from_corpus_dir(cfg.corpus_dir)
+            )
+        run_cases(
+            run_id,
+            cases,
+            system,
+            run_dir,
+            config=cfg,
+            dataset_path=str(self.cases),
+            retrieval_only=retrieval_only,
+        )
         root = root or self.baselines
         if (root / name).exists():
             shutil.rmtree(root / name)
@@ -99,11 +134,18 @@ class World:
         write_source(target, self.repo)
         return target
 
-    def record_base(self, **kwargs) -> Path:
-        return self.record(root=self.baselines.parent / "base", **kwargs)
+    def retriever(self) -> RetrievalOnlySystem:
+        """The config's retriever with no LLM, as `eval run --retrieval-only` builds it."""
+        cfg = load_config(self.config)
+        return RetrievalOnlySystem(build_retriever(cfg), cfg.retrieval.k)
 
-    def check(self, head: Path, base: Path | None):
-        return check_baseline(head, self.config, self.cases, base, self.gates, repo=self.repo)
+    def record_base(self, name: str = "dev", **kwargs) -> Path:
+        return self.record(name, root=self.baselines.parent / "base", **kwargs)
+
+    def check(self, head: Path, base: Path | None, gates: Path | None = None):
+        return check_baseline(
+            head, self.config, self.cases, base, gates or self.gates, repo=self.repo
+        )
 
     def fewer_cases(self) -> None:
         """Switch to a test set without the last dev case."""
@@ -372,3 +414,82 @@ def test_cli_check_exits_1_on_a_regression_and_2_on_a_stale_recording(world, mon
     stale = CliRunner().invoke(app, args)
     assert stale.exit_code == 2
     assert "make record" in stale.output
+
+
+def test_a_recorded_retrieval_regression_is_blocked(world):
+    base = world.record_base("dev-retrieval", retrieval_only=True)
+    broken = NoRetrieval(world.retriever())
+    head = world.record("dev-retrieval", system=broken, retrieval_only=True)
+
+    text, blocked = world.check(head, base, world.retrieval_gates)
+
+    assert blocked
+    assert "| hit@5 | 1 | 0 | -1 | 0.05 | 4 | 0 | 0.125 | REGRESSION | yes |" in text
+    assert "| hit@1 | 1 | 0 | -1 | 0.05 | 4 | 0 | 0.125 | REGRESSION | yes |" in text
+
+
+@pytest.mark.parametrize("again", [False, True], ids=["same run", "recorded again"])
+def test_an_unchanged_retrieval_recording_passes(world, again):
+    base = world.record_base("dev-retrieval", retrieval_only=True)
+    if again:
+        head = world.record("dev-retrieval", retrieval_only=True)
+    else:
+        head = world.baselines / "dev-retrieval"
+        shutil.copytree(base, head)
+
+    text, blocked = world.check(head, base, world.retrieval_gates)
+
+    assert not blocked
+    expected = "no flips" if again else "same recorded run as the base branch"
+    assert expected in text
+
+
+def test_new_cases_pass_the_retrieval_gate_without_a_comparison(world):
+    base = world.record_base("dev-retrieval", retrieval_only=True)
+    world.fewer_cases()
+    head = world.record("dev-retrieval", retrieval_only=True)
+
+    text, blocked = world.check(head, base, world.retrieval_gates)
+
+    assert not blocked
+    assert "cases or corpus changed" in text
+    assert "REGRESSION" not in text
+
+
+@pytest.mark.parametrize(
+    "change",
+    [{}, {"retrieval": {"k": 1}}, {"chunking": {"size_words": 50}}],
+    ids=["as committed", "k1", "chunk50"],
+)
+def test_the_retrieval_gate_runs_the_baseline_config(tmp_path, change):
+    """A retrieval change to configs/baseline.yaml has to reach configs/ci-retrieval.yaml.
+    Otherwise `make record` records the old retrieval again and the retrieval gate never sees it."""
+    bot = yaml.safe_load((REPO / "configs/baseline.yaml").read_text(encoding="utf-8"))
+    for section, values in change.items():
+        bot[section] |= values
+    (tmp_path / "baseline.yaml").write_text(yaml.safe_dump(bot), encoding="utf-8")
+    shutil.copy(REPO / "configs/ci-retrieval.yaml", tmp_path)
+
+    gate = load_config(tmp_path / "ci-retrieval.yaml")
+
+    assert config_hash(gate) == config_hash(load_config(tmp_path / "baseline.yaml"))
+
+
+def test_the_retrieval_gate_job_checks_the_recording_two_ways():
+    job = yaml.safe_load(CI.read_text(encoding="utf-8"))["jobs"]["retrieval-gate"]
+    script = "\n".join(step.get("run", "") for step in job["steps"])
+
+    # BM25 runs again on the runner and must not be worse than the committed recording.
+    assert (
+        "deskrag regress --config configs/ci-retrieval.yaml --baseline baselines/dev-retrieval"
+        " --gates baselines/retrieval-gates.yaml --retrieval-only"
+    ) in script
+    # `make record` replaces that recording in the same pull request, so it is also compared
+    # with the base branch's copy, as llm-gate does for baselines/dev.
+    assert job["steps"][0].get("with", {}).get("fetch-depth") == 2  # HEAD^1 is the base branch
+    assert "git archive HEAD^1 baselines/dev-retrieval " in script
+    assert (
+        "deskrag baseline check --baseline-dir baselines/dev-retrieval"
+        ' --base-dir "$RUNNER_TEMP/base/baselines/dev-retrieval"'
+        " --config configs/ci-retrieval.yaml --gates baselines/retrieval-gates.yaml"
+    ) in script
