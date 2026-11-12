@@ -1,8 +1,8 @@
 # Evaluation report
 
-Run: `20261111-174152-baseline-d045262d`
+Run: `20261112-173221-baseline-d045262d`
 Split: dev; cases: 60; reps: 1
-Dataset SHA256: `2c1bde89762745e6633a8a2e2f30a26039ecb656de1209501b51731baa26bc67`
+Dataset SHA256: `4892f42662c966365d77c2e0f17cdab0f80028c9a708becdf88fe45539b7e307`
 Config SHA256: `d045262d3b07af2dd08a233e536ee4064e0a88e83e10d2d23e0d97e73dae52ad`
 Machine: reference
 
@@ -20,27 +20,27 @@ Machine: reference
 
 | Metric | Value |
 |---|---:|
-| abstain_correct | 0.866667 |
-| abstain_f1 | 0.862069 |
+| abstain_correct | 0.883333 |
+| abstain_f1 | 0.877193 |
 | abstain_precision | 0.806452 |
-| abstain_recall | 0.925926 |
-| answer_correct | 0.777778 |
-| citation_hit | 0.862069 |
+| abstain_recall | 0.961538 |
+| answer_correct | 0.785714 |
+| citation_hit | 0.896552 |
 | citation_valid | 0.965517 |
 | completion_tokens_mean | 39.4667 |
-| e2e_pass | 0.766667 |
-| fact_recall | 0.851852 |
-| false_abstain_rate | 0.181818 |
+| e2e_pass | 0.783333 |
+| fact_recall | 0.857143 |
+| false_abstain_rate | 0.176471 |
 | format_error_rate | 0 |
-| hit@1 | 0.666667 |
-| hit@3 | 0.878788 |
-| hit@5 | 0.909091 |
-| latency_p50_s | 5.82332 |
-| latency_p95_s | 7.82047 |
-| missed_abstain_rate | 0.0740741 |
-| mrr | 0.765152 |
+| hit@1 | 0.647059 |
+| hit@3 | 0.852941 |
+| hit@5 | 0.911765 |
+| latency_p50_s | 6.06736 |
+| latency_p95_s | 8.78991 |
+| missed_abstain_rate | 0.0384615 |
+| mrr | 0.75 |
 | prompt_tokens_mean | 1692.57 |
-| recall@5 | 0.878788 |
+| recall@5 | 0.882353 |
 
 ## false_premise
 
@@ -61,8 +61,8 @@ Machine: reference
 | hit@1 | n/a |
 | hit@3 | n/a |
 | hit@5 | n/a |
-| latency_p50_s | 5.1599 |
-| latency_p95_s | 6.19015 |
+| latency_p50_s | 5.47511 |
+| latency_p95_s | 6.39723 |
 | missed_abstain_rate | 0 |
 | mrr | n/a |
 | prompt_tokens_mean | 1674.86 |
@@ -72,26 +72,26 @@ Machine: reference
 
 | Metric | Value |
 |---|---:|
-| abstain_correct | 0.777778 |
-| abstain_f1 | 0.875 |
+| abstain_correct | 0.875 |
+| abstain_f1 | 0.933333 |
 | abstain_precision | 1 |
-| abstain_recall | 0.777778 |
+| abstain_recall | 0.875 |
 | answer_correct | n/a |
 | citation_hit | 0 |
 | citation_valid | 1 |
-| completion_tokens_mean | 26.7778 |
-| e2e_pass | 0.777778 |
+| completion_tokens_mean | 25.625 |
+| e2e_pass | 0.875 |
 | fact_recall | n/a |
 | false_abstain_rate | n/a |
 | format_error_rate | 0 |
 | hit@1 | n/a |
 | hit@3 | n/a |
 | hit@5 | n/a |
-| latency_p50_s | 5.72727 |
-| latency_p95_s | 6.89555 |
-| missed_abstain_rate | 0.222222 |
+| latency_p50_s | 5.81434 |
+| latency_p95_s | 7.23763 |
+| missed_abstain_rate | 0.125 |
 | mrr | n/a |
-| prompt_tokens_mean | 1720.67 |
+| prompt_tokens_mean | 1708.88 |
 | recall@5 | n/a |
 
 ## multi_doc
@@ -113,8 +113,8 @@ Machine: reference
 | hit@1 | 0.666667 |
 | hit@3 | 0.888889 |
 | hit@5 | 0.888889 |
-| latency_p50_s | 6.74547 |
-| latency_p95_s | 9.91006 |
+| latency_p50_s | 6.81876 |
+| latency_p95_s | 10.0659 |
 | missed_abstain_rate | n/a |
 | mrr | 0.759259 |
 | prompt_tokens_mean | 1791 |
@@ -139,8 +139,8 @@ Machine: reference
 | hit@1 | n/a |
 | hit@3 | n/a |
 | hit@5 | n/a |
-| latency_p50_s | 4.88785 |
-| latency_p95_s | 5.70435 |
+| latency_p50_s | 5.29185 |
+| latency_p95_s | 5.92727 |
 | missed_abstain_rate | 0 |
 | mrr | n/a |
 | prompt_tokens_mean | 1649 |
@@ -165,8 +165,8 @@ Machine: reference
 | hit@1 | 0.444444 |
 | hit@3 | 0.777778 |
 | hit@5 | 0.888889 |
-| latency_p50_s | 5.94951 |
-| latency_p95_s | 7.25058 |
+| latency_p50_s | 6.09344 |
+| latency_p95_s | 7.50706 |
 | missed_abstain_rate | n/a |
 | mrr | 0.601852 |
 | prompt_tokens_mean | 1526 |
@@ -191,8 +191,8 @@ Machine: reference
 | hit@1 | n/a |
 | hit@3 | n/a |
 | hit@5 | n/a |
-| latency_p50_s | 4.94717 |
-| latency_p95_s | 6.09329 |
+| latency_p50_s | 5.07418 |
+| latency_p95_s | 6.50461 |
 | missed_abstain_rate | 0 |
 | mrr | n/a |
 | prompt_tokens_mean | 1649.67 |
@@ -202,27 +202,27 @@ Machine: reference
 
 | Metric | Value |
 |---|---:|
-| abstain_correct | 0.866667 |
+| abstain_correct | 0.875 |
 | abstain_f1 | 0 |
 | abstain_precision | 0 |
 | abstain_recall | 0 |
-| answer_correct | 0.846154 |
+| answer_correct | 0.857143 |
 | citation_hit | 1 |
 | citation_valid | 1 |
-| completion_tokens_mean | 50.2 |
-| e2e_pass | 0.733333 |
-| fact_recall | 0.923077 |
-| false_abstain_rate | 0.133333 |
+| completion_tokens_mean | 49.3125 |
+| e2e_pass | 0.75 |
+| fact_recall | 0.928571 |
+| false_abstain_rate | 0.125 |
 | format_error_rate | 0 |
-| hit@1 | 0.8 |
-| hit@3 | 0.933333 |
-| hit@5 | 0.933333 |
-| latency_p50_s | 6.7143 |
-| latency_p95_s | 7.563 |
+| hit@1 | 0.75 |
+| hit@3 | 0.875 |
+| hit@5 | 0.9375 |
+| latency_p50_s | 6.66923 |
+| latency_p95_s | 8.23158 |
 | missed_abstain_rate | n/a |
-| mrr | 0.866667 |
-| prompt_tokens_mean | 1756.53 |
-| recall@5 | 0.933333 |
+| mrr | 0.828125 |
+| prompt_tokens_mean | 1760.19 |
+| recall@5 | 0.9375 |
 
 ## Failure counts
 
@@ -230,7 +230,7 @@ Machine: reference
 |---|---:|
 | BAD_CITATION | 1 |
 | FALSE_ABSTAIN_MODEL | 6 |
-| MISSED_ABSTAIN | 2 |
+| MISSED_ABSTAIN | 1 |
 | RETRIEVAL_MISS | 3 |
 | WRONG_ANSWER | 6 |
 
@@ -242,7 +242,6 @@ Machine: reference
 | ff-008 | 0 | ok | WRONG_ANSWER |
 | ff-009 | 0 | ok | WRONG_ANSWER |
 | ff-010 | 0 | ok | WRONG_ANSWER |
-| ff-015 | 0 | ok | MISSED_ABSTAIN |
 | kp-005 | 0 | ok | FALSE_ABSTAIN_MODEL |
 | om-005 | 0 | ok | WRONG_ANSWER |
 | om-008 | 0 | ok | FALSE_ABSTAIN_MODEL |
