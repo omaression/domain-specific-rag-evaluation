@@ -88,7 +88,7 @@ Per-case scores go in `CaseResult.scores`, where `None` means "not applicable". 
 | Metric | Over | Definition |
 |---|---|---|
 | `hit@1`, `hit@3`, `hit@5`, `recall@5`, `mrr` | answerable | gold doc(s) in the top-k **doc-level** ranking (chunks de-duplicated by doc, first occurrence wins) |
-| `abstain_correct` | all | per case: `abstained == not answerable` |
+| `abstain_correct` | all | per case: `abstained == not answerable`; a truncated or unparsable reply scores 0 |
 | `abstain_precision`, `abstain_recall`, `abstain_f1` | all (positive class = should abstain) | confusion matrix of abstained vs unanswerable; truncated and parse errors are excluded and counted separately |
 | `false_abstain_rate` | answerable | abstained on an answerable question (over-refusal) |
 | `missed_abstain_rate` | unanswerable | answered when it should have abstained (hallucination) |

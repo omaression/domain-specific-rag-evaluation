@@ -1,0 +1,9 @@
+# Planted regression: the retrieval-score gate at the median top BM25 score of the 33 answerable
+# cases in baselines/dev (29.445063, om-004). 16 of the 33 answerable cases and 22 of the 27
+# unanswerable ones score below 29.445, so the bot refuses them without calling the model.
+# Evaluate on dev only.
+extends: ../baseline.yaml
+name: gate-high
+
+abstention:
+  min_score: 29.445

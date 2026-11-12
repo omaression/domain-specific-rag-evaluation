@@ -1,0 +1,4 @@
+# Control: prompt v1 reworded with the same meaning. The gate should not block it. Evaluate on dev only.
+extends: ../baseline.yaml
+name: reworded
+prompt_version: v1-reworded

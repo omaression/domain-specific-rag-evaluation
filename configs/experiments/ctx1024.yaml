@@ -1,0 +1,7 @@
+# Planted regression: a 1024-token context window instead of 4096. Prompts in baselines/dev
+# average 1693 tokens. Evaluate on dev only.
+extends: ../baseline.yaml
+name: ctx1024
+
+llm:
+  num_ctx: 1024

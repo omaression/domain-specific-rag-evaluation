@@ -2,7 +2,7 @@
 
 Proposed by Omar on 2026-11-09. Not reviewed by the group yet.
 
-Updated on 2026-11-11 after week 1: CI no longer runs the model. The LLM gate checks a run recorded on the reference Mac ([why](#why-ci-does-not-run-the-model)). [Week 1 status](#week-1-status) has the first results.
+Updated on 2026-11-11 after week 1: CI no longer runs the model. The LLM gate checks a run recorded on the reference Mac ([why](#why-ci-does-not-run-the-model)). [Week 1 status](#week-1-status) has the first results. The [results tables](#results-tables) have the planted and control runs on the 60 cases.
 
 ## Why we are changing
 
@@ -96,11 +96,15 @@ So a model check on hosted runners would cost 9 to 30 minutes per pull request, 
 
 ### Gaps in the current code
 
-Week 1 closed three of the four gaps listed here on 2026-11-09: `eval run --retrieval-only` works (fork PR #3), `eval run --case-ids` runs a named list of cases (fork PR #4), and the fork's main is protected. Still open:
+Week 1 closed three of the four gaps listed here on 2026-11-09: `eval run --retrieval-only` works (fork PR #3), `eval run --case-ids` runs a named list of cases (fork PR #4), and the fork's main is protected.
 
-- **Applicability changes.** `compare` stops with "Applicability changed" (exit 2) when a case has a score in one run and none in the other. A format error has no `abstain_correct`, so a change that causes format errors fails the gate as an invalid comparison instead of as a regression. The `maxtok32` planted regression will hit this. It needs a decision in week 2.
+The fourth was decided on 2026-11-11, before any planted run. `compare` used to stop with "Applicability changed" (exit 2) when a case had a score in one run and none in the other. A truncated or unparsable reply had no `abstain_correct`, so a change that caused format errors failed the gate as an invalid comparison instead of as a regression, and a single format error blocked a harmless change the same way. Now such a reply scores `abstain_correct` 0, as it already scored `e2e_pass` 0, and the usual McNemar rule judges it. `false_abstain_rate`, `missed_abstain_rate`, and abstain precision and recall still leave it out. The committed baselines have no format errors, so none of their scores changed.
+
+Still open:
+
 - **Data PRs are not compared.** Every PR that adds or edits cases has to run `make record`, and the gate accepts it without a comparison. The reviewer is the only check on a data PR.
-- **Latency warns on noise.** Three runs of unchanged code on the Mac gave `latency_p95_s` from 5.4 to 9.1 s, a wider spread than its 2.0 s tolerance. It is warn-only, so it never blocks, but its warnings mean little at this size.
+- **The retrieval gate compares a PR with itself.** It runs BM25 again and compares the result with the PR's own `baselines/dev-retrieval`, which `make record` replaces in the same PR. Its config also pins k to 5. So it cannot block a retrieval change that was recorded, and on a real PR it would have passed both `k1` and `chunk50` ([detection](#1-detection)). The LLM gate's hit@5 covers retrieval for now: it blocked `k1` with b = 8, c = 0. Comparing with the base branch's copy, as the LLM gate does, would fix it.
+- **Latency warns on noise.** Three runs of unchanged code on 26 cases gave `latency_p95_s` from 5.4 to 9.1 s. Five runs on the 60 cases gave 5.2 to 10.4 s against 7.8 s in the recording, and two of the five warned at its 2.0 s tolerance. It is warn-only, so it never blocks, but its warnings mean little at this size.
 
 ## The experiment
 
@@ -148,9 +152,65 @@ No new LLM calls. A script takes the full Mac runs for the baseline and each pla
 
 ### Results tables
 
-1. **Detection:** one row per planted regression, with the verdict from the retrieval gate and the LLM gate.
-2. **False alarms:** one row per control, with verdicts and flip counts.
-3. **Sensitivity:** detection rate by subset size.
+All runs were on 2026-11-11, on the reference Mac (Apple M4, 16 GB, Ollama 0.40.3), with the 60 frozen dev cases (33 answerable, 27 not), one run at a time. The gate settings were not changed.
+
+Each LLM gate verdict comes from `make regress CONFIG=...` against the recording `20261111-174152-baseline-d045262d` (e2e_pass 46 of 60, hit@5 30 of 33, abstain_correct 52 of 60). That is the comparison the LLM gate makes when a PR commits a recording of the change. Minutes are Mac wall time for one run of the 60 cases, about what `make record` takes. CI adds about 20 s. A cell like 10 / 2 / 0.039 means b = 10 cases went from pass to fail, c = 2 went from fail to pass, and the exact McNemar p is 0.039. [planted-runs.md](planted-runs.md) has every metric and every flipped case for each run.
+
+#### 1. Detection
+
+| Planted | Retrieval gate | LLM gate | e2e_pass | hit@5 | abstain_correct | Minutes |
+|---|---|---|---|---|---|---:|
+| `k1` | Blocked: hit@5 8 / 0 / 0.008 | Blocked by e2e_pass and hit@5 | 10 / 2 / 0.039 | 8 / 0 / 0.008 | 9 / 2 / 0.065 | 1.9 |
+| `k3` | Passed: hit@5 1 / 0 / 1 | Passed | 2 / 2 / 1 | 1 / 0 / 1 | 1 / 2 / 1 | 2.8 |
+| `closed-book` | Cannot run: `--retrieval-only` needs `system: rag` | Blocked by all three | 34 / 1 / < 0.001 | 30 / 0 / < 0.001 | 17 / 5 / 0.017 | 1.8 |
+| `no-abstain` | No retrieval change | Passed with a warning | 7 / 2 / 0.18 | 0 / 0 / 1 | 7 / 3 / 0.34 | 11.3 |
+| `no-cite` | No retrieval change | Passed | 0 / 0 / 1 | 0 / 0 / 1 | 0 / 1 / 1 | 7.9 |
+| `chunk50` | Passed with a warning: hit@5 3 / 1 / 0.625, hit@1 4 / 1 / 0.375 | Passed with a warning | 5 / 1 / 0.22 | 3 / 1 / 0.625 | 5 / 0 / 0.0625 | 2.8 |
+| `ctx1024` | No retrieval change | Run failed with exit 2, nothing compared | n/a | n/a | n/a | 3.2 |
+| `maxtok32` | No retrieval change | Blocked by e2e_pass and abstain_correct | 22 / 0 / < 0.001 | 0 / 0 / 1 | 28 / 0 / < 0.001 | 6.5 |
+| `gate-high` | No retrieval change | Blocked by e2e_pass and abstain_correct | 11 / 2 / 0.022 | 0 / 0 / 1 | 13 / 2 / 0.007 | 1.1 |
+
+Cases lost and gained on e2e_pass:
+
+- `k1`: lost ff-007, om-001, om-003, om-004, om-007, om-009, om-010, om-015, om-022, om-028; gained ff-015, kp-005.
+- `k3`: lost om-001, om-010; gained ff-015, kp-005.
+- `closed-book`: lost 34 of the 46 passing cases; gained om-012.
+- `no-abstain`: lost ff-016, ff-018, ff-019, om-015, om-030, om-033, om-034; gained kp-005, om-008.
+- `chunk50`: lost ff-007, om-001, om-007, om-009, om-010; gained ff-008.
+- `maxtok32`: lost 22, gained none.
+- `gate-high`: lost ff-002, ff-003, ff-005, ff-006, ff-011, ff-012, kp-004, om-009, om-010, om-026, om-028; gained ff-015, om-012.
+
+What the table shows:
+
+- **Blocked by a verdict: 4 of 9.** The LLM gate blocked `k1`, `closed-book`, `maxtok32`, and `gate-high`. Each one broke 10 or more passing cases. `maxtok32` cut off 30 of the 60 replies. It counts as a regression only because of the 2026-11-11 change to `abstain_correct`. Before it, `compare` would have stopped with exit 2.
+- **Blocked without a verdict: `ctx1024`.** Ollama 0.40.3 does not cut a long prompt. It refuses it with HTTP 400 ("exceeds the available context size"). 59 of the 60 prompts were 1,282 to 2,230 tokens; only `ff-010` (978 tokens) fit. The harness counts each refusal as an infra error, so the run stops with exit 2 and nothing is compared. `make record` refuses a run with infra errors, so a PR with this change would keep the old recording, and the LLM gate would fail it as out of date.
+- **Got through: 2 real regressions.** Without its abstain rules, the bot answered 9 unanswerable questions instead of 2. It lost 7 passing cases and gained 2, so p = 0.18. In week 1, on 26 cases, the same change gave b = 3, c = 1. `chunk50` lost 5 and gained 1 on e2e_pass. On abstain_correct it lost 5 with none back, p = 0.0625, one flip short of the 6 the gate needs. Both only warned.
+- **Passed, with a small effect or none: `k3` and `no-cite`.** `k3` lost one source page (`om-010`), and e2e_pass lost two cases and gained two. `no-cite` changed nothing the gate measures. All 30 answers still cited a document, and citation_valid went from 0.966 to 1.0, because the reply format still has a "citations" field. A change that drops citations would have to be in the code, not the prompt.
+- **The retrieval column is not what CI would show.** These rows ran each planted config retrieval-only against main's `baselines/dev-retrieval`, as planned above. CI's retrieval gate does something else. It runs `configs/ci-retrieval.yaml`, which pins k to 5, and it compares with the PR's own `baselines/dev-retrieval`, which `make record` replaces in the same PR. So on a real PR it would pass both `k1` and `chunk50`. [Gaps](#gaps-in-the-current-code) lists this.
+
+#### 2. False alarms
+
+| Control | LLM gate | e2e_pass, hit@5, abstain_correct | Answers that differ from the recording | Minutes |
+|---|---|---|---|---:|
+| `rerun-1` | Passed | 0 / 0 / 1 on all three | 0 of 60 | 6.5 |
+| `rerun-2` | Passed | 0 / 0 / 1 on all three | 0 of 60 | 7.5 |
+| `rerun-3` | Passed | 0 / 0 / 1 on all three | 0 of 60 | 2.9 |
+| `rerun-4` | Passed | 0 / 0 / 1 on all three | 0 of 60 | 4.3 awake |
+| `rerun-5` | Passed | 0 / 0 / 1 on all three | 0 of 60 | 2.3 |
+| `reworded` | Passed | 0 / 0 / 1 on all three | 18 of 60, no verdict changed | 8.2 |
+| `seed43` | Passed | 0 / 0 / 1 on all three | 0 of 60 | 8.5 |
+
+An answer differs if its text, abstain decision, citations, or status differ.
+
+- **No false alarms: 0 of 7.** No control flipped a single case on a gated metric.
+- **The Mac agreed with itself.** All five reruns matched the recording word for word on all 60 cases. That includes `rerun-4`, although the lid was closed from 14:38 to 15:38 and the Mac slept in the middle of it. Its 4.3 minutes is awake time; wall time was 62 minutes.
+- **`seed43` is a weak control.** Temperature is 0, so the seed changes nothing. It gave the recording's answers on all 60.
+- **`reworded`** changed the wording or citations of 18 answers and no verdict.
+- **Latency was the only thing that warned.** Over the five reruns, latency_p95_s went from 5.2 to 10.4 s against 7.8 s in the recording, and `rerun-2` and `rerun-4` warned. It is not gated. The same config took 2.3 to 7.5 minutes with the same answers, so the minutes in both tables are rough.
+
+#### 3. Sensitivity
+
+Not done yet (step 6). It reuses the runs above, which stay in `runs/` on the Mac. `model-alt`, the one real change, has not run yet either.
 
 ## Test set
 
@@ -182,7 +242,7 @@ Commits are grouped by workstream area so each owner can review their part:
 2. Finish `eval run --retrieval-only` and add the case-ID list option. Done.
 3. Record the baselines, make the retrieval gate blocking, add the LLM gate job. Done, as replay.
 4. Write the 34 new cases.
-5. Planted configs and prompts, and the control runs, all on the Mac.
+5. Planted configs and prompts, and the control runs, all on the Mac. Done on 2026-11-11 ([results](#results-tables)).
 6. The resampling script.
 7. Report, repo docs, deck.
 
@@ -237,5 +297,5 @@ Working title: "An Evaluation Harness with CI Regression Testing for a Universit
 
 - **Recording depends on one machine.** Every baseline comes from the reference Mac. If it is unavailable, or Ollama or the model changes, the baselines have to be recorded again on another machine, and that PR passes without a comparison.
 - **The recorder is trusted.** CI cannot tell whether a recorded answer came from the model. Re-scoring catches edited scores but not edited answers, so `baselines/` diffs need a real review.
-- **The Mac disagrees with itself.** So far three runs of unchanged code agreed on all 26 cases. The five control reruns measure it, and the number goes in the report as the gate's false-alarm rate.
+- **The Mac could disagree with itself.** It has not yet. Five reruns of unchanged code on the 60 cases matched the recording word for word, so reruns gave 0 false alarms in 5. Five runs cannot rule out a rare flip, and an Ollama or model update could change answers, which is the first risk again.
 - **The gate is weak on small sets.** Week 1 showed it: two real regressions got through. Question 3 reports this plainly, and more cases raise the gate's power without loosening its rules.

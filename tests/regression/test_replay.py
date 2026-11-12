@@ -61,6 +61,19 @@ class NoRetrieval:
         return self.inner.answer(question).model_copy(update={"retrieved": []})
 
 
+class CutOffAnswers:
+    """The fake system with a token limit too low for an answer but not for an abstain reply."""
+
+    def __init__(self, inner):
+        self.inner = inner
+
+    def answer(self, question):
+        reply = self.inner.answer(question)
+        if reply.abstained:
+            return reply
+        return reply.model_copy(update={"status": "truncated", "answer": None, "cited_doc_ids": []})
+
+
 class World:
     """A small stand-in for the repo: pipeline code, a config, cases, gates, and baselines/."""
 
@@ -203,6 +216,22 @@ def test_a_regression_is_blocked(world):
     assert blocked
     assert "| hit@5 | 1 | 0 | -1 | 0.05 | 4 | 0 | 0.125 | REGRESSION | yes |" in text
     assert not (head / "compare.md").exists()  # checking never writes into baselines/
+
+
+def test_truncated_replies_are_judged_as_wrong_decisions(world):
+    world.gates.write_text(
+        GATES + "  abstain_correct: {tolerance: 0.05, gate: true}\n", encoding="utf-8"
+    )
+    base = world.record_base()
+    fake = FakeRAGSystem.from_corpus_dir(SAMPLES / "corpus")
+    head = world.record(system=CutOffAnswers(fake))
+
+    text, blocked = world.check(head, base)
+
+    # The three cut-off answers count as wrong decisions instead of stopping the comparison.
+    assert not blocked
+    row = "| abstain_correct | 0.714286 | 0.285714 | -0.428571 | 0.05 | 3 | 0 | 0.25 | POSSIBLE | yes |"
+    assert row in text
 
 
 @pytest.mark.parametrize(

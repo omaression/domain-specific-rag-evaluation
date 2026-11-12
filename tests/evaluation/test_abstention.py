@@ -59,14 +59,39 @@ def test_unanswerable_question_incorrectly_answered(sample_data):
 
 
 @pytest.mark.parametrize("status", ["parse_error", "truncated"])
-def test_broken_output_is_excluded(sample_data, status):
+def test_broken_output_is_a_wrong_decision(sample_data, status):
     cases, system = sample_data
     case = next(case for case in cases if case.case_id == "s06")
     answer = system.answer(case.question).model_copy(update={"status": status})
 
     scores = score_case(case, answer)
 
-    assert all(value is None for value in scores.values())
+    # Not a correct decision, but neither a false nor a missed abstention.
+    assert scores == {
+        "abstain_correct": 0.0,
+        "false_abstain_rate": None,
+        "missed_abstain_rate": None,
+    }
+
+
+def test_broken_output_stays_out_of_abstain_precision(sample_data):
+    cases, system = sample_data
+    case = next(case for case in cases if case.case_id == "s06")
+    answer = system.answer(case.question).model_copy(update={"status": "parse_error"})
+    row = CaseResult(
+        run_id="test-run",
+        case_id=case.case_id,
+        answer=answer,
+        scores=score_case(case, answer),
+        passed=False,
+    )
+
+    metrics = aggregate([row])
+
+    assert metrics["abstain_correct"] == 0.0
+    assert metrics["abstain_precision"] is None
+    assert metrics["abstain_recall"] is None
+    assert metrics["abstain_f1"] is None
 
 
 def test_all_sample_abstention_averages(sample_data):
@@ -88,7 +113,8 @@ def test_all_sample_abstention_averages(sample_data):
 
     metrics = aggregate(rows)
 
-    assert metrics["abstain_correct"] == pytest.approx(5 / 9)
+    # s06's parse error counts as a wrong decision but stays out of the rates and precision.
+    assert metrics["abstain_correct"] == pytest.approx(5 / 10)
     assert metrics["false_abstain_rate"] == pytest.approx(2 / 5)
     assert metrics["missed_abstain_rate"] == pytest.approx(2 / 4)
     assert metrics["abstain_precision"] == pytest.approx(0.5)

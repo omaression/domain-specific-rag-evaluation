@@ -15,9 +15,10 @@ def score_case(
 ) -> dict[str, float | None]:
     """Score the decision to answer or abstain for one question."""
 
-    # Broken output is not a valid decision to answer or abstain.
+    # Broken output is not a decision to answer or abstain, so it is not a correct one. It is
+    # neither a false nor a missed abstention, so those two rates leave it out.
     if answer.status != "ok":
-        return {name: None for name in CASE_METRICS}
+        return {"abstain_correct": 0.0, "false_abstain_rate": None, "missed_abstain_rate": None}
 
     should_abstain = not case.answerable
     correct = answer.abstained == should_abstain
@@ -55,7 +56,8 @@ def aggregate(
     valid_decisions = 0
 
     for row in rows:
-        if row.scores.get("abstain_correct") is None:
+        # Retrieval-only rows have no decision to score; broken output made no decision.
+        if row.scores.get("abstain_correct") is None or row.answer.status != "ok":
             continue
 
         valid_decisions += 1
