@@ -1,9 +1,9 @@
 # Evaluation report
 
-Run: `20261112-173221-baseline-d045262d`
+Run: `20261113-043255-baseline-278cde98`
 Split: dev; cases: 60; reps: 1
 Dataset SHA256: `4892f42662c966365d77c2e0f17cdab0f80028c9a708becdf88fe45539b7e307`
-Config SHA256: `d045262d3b07af2dd08a233e536ee4064e0a88e83e10d2d23e0d97e73dae52ad`
+Config SHA256: `278cde98b48fffc7cdaa0c55b45a4c687773739b8b65f7196a776f287302ceca`
 Machine: reference
 
 ## Counts
@@ -25,9 +25,9 @@ Machine: reference
 | abstain_precision | 0.806452 |
 | abstain_recall | 0.961538 |
 | answer_correct | 0.785714 |
-| citation_hit | 0.896552 |
+| citation_hit | 0.862069 |
 | citation_valid | 0.965517 |
-| completion_tokens_mean | 39.4667 |
+| completion_tokens_mean | 38.7833 |
 | e2e_pass | 0.783333 |
 | fact_recall | 0.857143 |
 | false_abstain_rate | 0.176471 |
@@ -35,11 +35,11 @@ Machine: reference
 | hit@1 | 0.647059 |
 | hit@3 | 0.852941 |
 | hit@5 | 0.911765 |
-| latency_p50_s | 6.06736 |
-| latency_p95_s | 8.78991 |
+| latency_p50_s | 5.85035 |
+| latency_p95_s | 8.57453 |
 | missed_abstain_rate | 0.0384615 |
 | mrr | 0.75 |
-| prompt_tokens_mean | 1692.57 |
+| prompt_tokens_mean | 1693.57 |
 | recall@5 | 0.882353 |
 
 ## false_premise
@@ -53,7 +53,7 @@ Machine: reference
 | answer_correct | n/a |
 | citation_hit | n/a |
 | citation_valid | n/a |
-| completion_tokens_mean | 19.1429 |
+| completion_tokens_mean | 18 |
 | e2e_pass | 1 |
 | fact_recall | n/a |
 | false_abstain_rate | n/a |
@@ -61,11 +61,11 @@ Machine: reference
 | hit@1 | n/a |
 | hit@3 | n/a |
 | hit@5 | n/a |
-| latency_p50_s | 5.47511 |
-| latency_p95_s | 6.39723 |
+| latency_p50_s | 5.31565 |
+| latency_p95_s | 6.20306 |
 | missed_abstain_rate | 0 |
 | mrr | n/a |
-| prompt_tokens_mean | 1674.86 |
+| prompt_tokens_mean | 1675.86 |
 | recall@5 | n/a |
 
 ## missing_info
@@ -79,7 +79,7 @@ Machine: reference
 | answer_correct | n/a |
 | citation_hit | 0 |
 | citation_valid | 1 |
-| completion_tokens_mean | 25.625 |
+| completion_tokens_mean | 22.875 |
 | e2e_pass | 0.875 |
 | fact_recall | n/a |
 | false_abstain_rate | n/a |
@@ -87,11 +87,11 @@ Machine: reference
 | hit@1 | n/a |
 | hit@3 | n/a |
 | hit@5 | n/a |
-| latency_p50_s | 5.81434 |
-| latency_p95_s | 7.23763 |
+| latency_p50_s | 5.6964 |
+| latency_p95_s | 6.76443 |
 | missed_abstain_rate | 0.125 |
 | mrr | n/a |
-| prompt_tokens_mean | 1708.88 |
+| prompt_tokens_mean | 1709.88 |
 | recall@5 | n/a |
 
 ## multi_doc
@@ -105,7 +105,7 @@ Machine: reference
 | answer_correct | 0.571429 |
 | citation_hit | 0.857143 |
 | citation_valid | 1 |
-| completion_tokens_mean | 64.2222 |
+| completion_tokens_mean | 63.2222 |
 | e2e_pass | 0.444444 |
 | fact_recall | 0.714286 |
 | false_abstain_rate | 0.222222 |
@@ -113,11 +113,11 @@ Machine: reference
 | hit@1 | 0.666667 |
 | hit@3 | 0.888889 |
 | hit@5 | 0.888889 |
-| latency_p50_s | 6.81876 |
-| latency_p95_s | 10.0659 |
+| latency_p50_s | 6.96919 |
+| latency_p95_s | 9.96147 |
 | missed_abstain_rate | n/a |
 | mrr | 0.759259 |
-| prompt_tokens_mean | 1791 |
+| prompt_tokens_mean | 1792 |
 | recall@5 | 0.777778 |
 
 ## out_of_domain
@@ -139,11 +139,11 @@ Machine: reference
 | hit@1 | n/a |
 | hit@3 | n/a |
 | hit@5 | n/a |
-| latency_p50_s | 5.29185 |
-| latency_p95_s | 5.92727 |
+| latency_p50_s | 5.00983 |
+| latency_p95_s | 5.86993 |
 | missed_abstain_rate | 0 |
 | mrr | n/a |
-| prompt_tokens_mean | 1649 |
+| prompt_tokens_mean | 1650 |
 | recall@5 | n/a |
 
 ## paraphrase
@@ -157,7 +157,7 @@ Machine: reference
 | answer_correct | 0.857143 |
 | citation_hit | 0.857143 |
 | citation_valid | 0.857143 |
-| completion_tokens_mean | 50.3333 |
+| completion_tokens_mean | 51.3333 |
 | e2e_pass | 0.666667 |
 | fact_recall | 0.857143 |
 | false_abstain_rate | 0.222222 |
@@ -165,11 +165,11 @@ Machine: reference
 | hit@1 | 0.444444 |
 | hit@3 | 0.777778 |
 | hit@5 | 0.888889 |
-| latency_p50_s | 6.09344 |
-| latency_p95_s | 7.50706 |
+| latency_p50_s | 5.98021 |
+| latency_p95_s | 7.74188 |
 | missed_abstain_rate | n/a |
 | mrr | 0.601852 |
-| prompt_tokens_mean | 1526 |
+| prompt_tokens_mean | 1527 |
 | recall@5 | 0.888889 |
 
 ## personal
@@ -183,7 +183,7 @@ Machine: reference
 | answer_correct | n/a |
 | citation_hit | n/a |
 | citation_valid | n/a |
-| completion_tokens_mean | 19.8333 |
+| completion_tokens_mean | 18 |
 | e2e_pass | 1 |
 | fact_recall | n/a |
 | false_abstain_rate | n/a |
@@ -191,11 +191,11 @@ Machine: reference
 | hit@1 | n/a |
 | hit@3 | n/a |
 | hit@5 | n/a |
-| latency_p50_s | 5.07418 |
-| latency_p95_s | 6.50461 |
+| latency_p50_s | 5.13275 |
+| latency_p95_s | 5.87453 |
 | missed_abstain_rate | 0 |
 | mrr | n/a |
-| prompt_tokens_mean | 1649.67 |
+| prompt_tokens_mean | 1650.67 |
 | recall@5 | n/a |
 
 ## single_doc
@@ -207,7 +207,7 @@ Machine: reference
 | abstain_precision | 0 |
 | abstain_recall | 0 |
 | answer_correct | 0.857143 |
-| citation_hit | 1 |
+| citation_hit | 0.928571 |
 | citation_valid | 1 |
 | completion_tokens_mean | 49.3125 |
 | e2e_pass | 0.75 |
@@ -217,11 +217,11 @@ Machine: reference
 | hit@1 | 0.75 |
 | hit@3 | 0.875 |
 | hit@5 | 0.9375 |
-| latency_p50_s | 6.66923 |
-| latency_p95_s | 8.23158 |
+| latency_p50_s | 6.52892 |
+| latency_p95_s | 7.94214 |
 | missed_abstain_rate | n/a |
 | mrr | 0.828125 |
-| prompt_tokens_mean | 1760.19 |
+| prompt_tokens_mean | 1761.19 |
 | recall@5 | 0.9375 |
 
 ## Failure counts
