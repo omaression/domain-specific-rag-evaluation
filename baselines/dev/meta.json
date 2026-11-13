@@ -1,6 +1,6 @@
 {
-  "run_id": "20261112-173221-baseline-d045262d",
-  "created_at": "2026-11-12T17:32:21.411045Z",
+  "run_id": "20261113-043255-baseline-278cde98",
+  "created_at": "2026-11-13T04:32:55.338430Z",
   "config": {
     "name": "baseline",
     "system": "rag",
@@ -25,10 +25,10 @@
       "max_tokens": 512,
       "think": false
     },
-    "prompt_version": "v1"
+    "prompt_version": "v1-reworded"
   },
-  "config_hash": "d045262d3b07af2dd08a233e536ee4064e0a88e83e10d2d23e0d97e73dae52ad",
-  "git_sha": "41e0ef2dabe913f539cad845296dd4dc0d669cbf",
+  "config_hash": "278cde98b48fffc7cdaa0c55b45a4c687773739b8b65f7196a776f287302ceca",
+  "git_sha": "ec071d9234de9231bb133479c6779a9abe466369",
   "git_dirty": false,
   "dataset": {
     "path": "data/testset",
