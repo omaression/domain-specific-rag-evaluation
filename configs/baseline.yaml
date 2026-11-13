@@ -13,7 +13,7 @@ chunking:
 
 retrieval:
   method: bm25 # bm25 | dense | hybrid
-  k: 5
+  k: 1
   embed_model: nomic-embed-text # used by dense and hybrid
 
 abstention:

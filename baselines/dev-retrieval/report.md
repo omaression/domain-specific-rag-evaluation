@@ -1,9 +1,9 @@
 # Evaluation report
 
-Run: `20261112-173832-ci-retrieval-d045262d`
+Run: `20261113-043149-ci-retrieval-230af418`
 Split: dev; cases: 60; reps: 1
 Dataset SHA256: `4892f42662c966365d77c2e0f17cdab0f80028c9a708becdf88fe45539b7e307`
-Config SHA256: `d045262d3b07af2dd08a233e536ee4064e0a88e83e10d2d23e0d97e73dae52ad`
+Config SHA256: `230af4180e2a6238e0fa35f6c9c9a18bbbf2e2f4895f9204fda118fb182382ad`
 Machine: reference
 
 ## Counts
@@ -33,14 +33,14 @@ Machine: reference
 | false_abstain_rate | n/a |
 | format_error_rate | n/a |
 | hit@1 | 0.647059 |
-| hit@3 | 0.852941 |
-| hit@5 | 0.911765 |
+| hit@3 | 0.647059 |
+| hit@5 | 0.647059 |
 | latency_p50_s | n/a |
 | latency_p95_s | n/a |
 | missed_abstain_rate | n/a |
-| mrr | 0.75 |
+| mrr | 0.647059 |
 | prompt_tokens_mean | n/a |
-| recall@5 | 0.882353 |
+| recall@5 | 0.558824 |
 
 ## false_premise
 
@@ -111,14 +111,14 @@ Machine: reference
 | false_abstain_rate | n/a |
 | format_error_rate | n/a |
 | hit@1 | 0.666667 |
-| hit@3 | 0.888889 |
-| hit@5 | 0.888889 |
+| hit@3 | 0.666667 |
+| hit@5 | 0.666667 |
 | latency_p50_s | n/a |
 | latency_p95_s | n/a |
 | missed_abstain_rate | n/a |
-| mrr | 0.759259 |
+| mrr | 0.666667 |
 | prompt_tokens_mean | n/a |
-| recall@5 | 0.777778 |
+| recall@5 | 0.333333 |
 
 ## out_of_domain
 
@@ -163,14 +163,14 @@ Machine: reference
 | false_abstain_rate | n/a |
 | format_error_rate | n/a |
 | hit@1 | 0.444444 |
-| hit@3 | 0.777778 |
-| hit@5 | 0.888889 |
+| hit@3 | 0.444444 |
+| hit@5 | 0.444444 |
 | latency_p50_s | n/a |
 | latency_p95_s | n/a |
 | missed_abstain_rate | n/a |
-| mrr | 0.601852 |
+| mrr | 0.444444 |
 | prompt_tokens_mean | n/a |
-| recall@5 | 0.888889 |
+| recall@5 | 0.444444 |
 
 ## personal
 
@@ -215,26 +215,35 @@ Machine: reference
 | false_abstain_rate | n/a |
 | format_error_rate | n/a |
 | hit@1 | 0.75 |
-| hit@3 | 0.875 |
-| hit@5 | 0.9375 |
+| hit@3 | 0.75 |
+| hit@5 | 0.75 |
 | latency_p50_s | n/a |
 | latency_p95_s | n/a |
 | missed_abstain_rate | n/a |
-| mrr | 0.828125 |
+| mrr | 0.75 |
 | prompt_tokens_mean | n/a |
-| recall@5 | 0.9375 |
+| recall@5 | 0.75 |
 
 ## Failure counts
 
 | Tag | Count |
 |---|---:|
-| RETRIEVAL_MISS | 3 |
+| RETRIEVAL_MISS | 12 |
 
 ## Failed cases
 
 | Case | Rep | Status | Failure tags |
 |---|---:|---|---|
+| ff-008 | 0 | ok | RETRIEVAL_MISS |
+| ff-009 | 0 | ok | RETRIEVAL_MISS |
+| ff-010 | 0 | ok | RETRIEVAL_MISS |
+| ff-011 | 0 | ok | RETRIEVAL_MISS |
+| ff-015 | 0 | ok | RETRIEVAL_MISS |
+| om-004 | 0 | ok | RETRIEVAL_MISS |
+| om-009 | 0 | ok | RETRIEVAL_MISS |
+| om-010 | 0 | ok | RETRIEVAL_MISS |
 | om-020 | 0 | ok | RETRIEVAL_MISS |
+| om-023 | 0 | ok | RETRIEVAL_MISS |
 | om-024 | 0 | ok | RETRIEVAL_MISS |
 | om-027 | 0 | ok | RETRIEVAL_MISS |
 

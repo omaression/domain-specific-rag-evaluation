@@ -1,11 +1,11 @@
 {
-  "run_id": "20261112-173832-ci-retrieval-d045262d",
+  "run_id": "20261113-043149-ci-retrieval-230af418",
   "metrics": {
     "hit@1": 0.6470588235294118,
-    "hit@3": 0.8529411764705882,
-    "hit@5": 0.9117647058823529,
-    "recall@5": 0.8823529411764706,
-    "mrr": 0.75,
+    "hit@3": 0.6470588235294118,
+    "hit@5": 0.6470588235294118,
+    "recall@5": 0.5588235294117647,
+    "mrr": 0.6470588235294118,
     "abstain_correct": null,
     "false_abstain_rate": null,
     "missed_abstain_rate": null,
@@ -72,10 +72,10 @@
     },
     "multi_doc": {
       "hit@1": 0.6666666666666666,
-      "hit@3": 0.8888888888888888,
-      "hit@5": 0.8888888888888888,
-      "recall@5": 0.7777777777777778,
-      "mrr": 0.7592592592592592,
+      "hit@3": 0.6666666666666666,
+      "hit@5": 0.6666666666666666,
+      "recall@5": 0.3333333333333333,
+      "mrr": 0.6666666666666666,
       "abstain_correct": null,
       "false_abstain_rate": null,
       "missed_abstain_rate": null,
@@ -118,10 +118,10 @@
     },
     "paraphrase": {
       "hit@1": 0.4444444444444444,
-      "hit@3": 0.7777777777777778,
-      "hit@5": 0.8888888888888888,
-      "recall@5": 0.8888888888888888,
-      "mrr": 0.6018518518518519,
+      "hit@3": 0.4444444444444444,
+      "hit@5": 0.4444444444444444,
+      "recall@5": 0.4444444444444444,
+      "mrr": 0.4444444444444444,
       "abstain_correct": null,
       "false_abstain_rate": null,
       "missed_abstain_rate": null,
@@ -164,10 +164,10 @@
     },
     "single_doc": {
       "hit@1": 0.75,
-      "hit@3": 0.875,
-      "hit@5": 0.9375,
-      "recall@5": 0.9375,
-      "mrr": 0.828125,
+      "hit@3": 0.75,
+      "hit@5": 0.75,
+      "recall@5": 0.75,
+      "mrr": 0.75,
       "abstain_correct": null,
       "false_abstain_rate": null,
       "missed_abstain_rate": null,
@@ -194,6 +194,6 @@
     "parse_errors": 0
   },
   "failure_counts": {
-    "RETRIEVAL_MISS": 3
+    "RETRIEVAL_MISS": 12
   }
 }
